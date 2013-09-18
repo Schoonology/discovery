@@ -1,0 +1,26 @@
+{
+  "name": "sc-discovery",
+  "version": "0.0.0",
+  "description": "This module provides discovery services for supercluster.",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha --reporter list"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/strongloop/sc-discovery.git"
+  },
+  "keywords": [
+    "discovery",
+    "distributed",
+    "supercluster",
+    "udp",
+    "multicast",
+    "tcp"
+  ],
+  "author": "Edmond Meinfelder",
+  "license": "TBD, Copyright (c) 2013 Strongloop",
+  "devDependencies": {
+    "mocha": "~1.13.0"
+  }
+}
