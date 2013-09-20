@@ -13,36 +13,19 @@
 var dgram = require('dgram');
 var util = require('util');
 var events = require('events');
+var debug = require('debug')('sc-discovery');
+var is = require('is2');
 
 // Constants
 var MULTICAST_ADDRESS = '224.0.0.234';
 var MULTICAST_PORT = 44201;
-var TIMEOUT_INT = 2000;
+var TIMEOUT_INT = 1000;
 var DEFAULT_ANN_INT = 3000;
 var DEFAULT_DGRAM_TYPE = 'udp4';
 
-// The object is a singleton globally stored here
-var singleton;
-
 // We use events and must inherit from events.EventEmitter
 util.inherits(Discovery, events.EventEmitter);
-
-/**
- * Get a discovery object. If one does not yet exist, create it. If one exists,
- * return the existing object.
- * @return {Object} A Discovery object.
- */
-exports.getDiscovery = function(options) {
-  if (!singleton) {
-    singleton = new Discovery(options);
-    return singleton;
-  }
-  if (options && (options.debug || singleton.debug)) {
-    console.warn('getDiscovery receiving options after object already '+
-                 ' created.');
-  }
-  return singleton;
-};
+exports.Discovery = Discovery;
 
 /**
  * Creates a Discovery object. The options object is optional. Supported options
@@ -60,8 +43,11 @@ function Discovery(options) {
   // for use in callbacks where this is not the this I care about
   var self = this;
 
+  if (options && !is.obj(options))
+    debug('Dicovery constructor bad options argument: '+util.inspect(options));
+
   // optionally send errors to console
-  self.debug = (options && options.debug) ? options.debug : false;
+  //self.debug = (options && options.debug) ? options.debug : false;
 
   // Create a dgram socket and bind it
   self.dgramType = (options && options.dgramType) ?
@@ -85,7 +71,7 @@ function Discovery(options) {
     if (message) {
       var obj = jsonStrToObj(message.toString());
       if (!obj) {
-        this.error('Dicovery bad announcement: '+message.toString());
+        debug('bad announcement: '+message.toString());
         return;
       }
       // the real work is done in handleAnnouncement
@@ -100,16 +86,19 @@ function Discovery(options) {
  * @return {Boolean} true, if successful false otherwise.
  */
 Discovery.prototype.announce = function(serviceObject) {
-  if (!serviceObject || !serviceObject.name) {
-    this.error('Discovery.accounce error: '+util.inspect(serviceObject));
+  if (!is.nonEmptyObj(serviceObject)) {
+    debug('announce error: bad service object: '+util.inspect(serviceObject));
+  }
+  if (!serviceObject.name) {
+    debug('accounce error: mssing name: '+util.inspect(serviceObject));
     return false;
   }
 
   // make a copy of the object
   var copy = copyObj(serviceObject);
   if (!copy) {
-    this.error('Discovery.announce error: bad serviceObject: '+
-               util.inspect(serviceObject));
+    debug('announce error: bad serviceObject: '+util.inspect(serviceObject));
+    return false;
   }
 
   // attempt to add the announcement return result to user
@@ -123,21 +112,25 @@ Discovery.prototype.announce = function(serviceObject) {
  */
 Discovery.prototype.stopAnnounce = function(name) {
   // we have to have a name that is string and not empty
-  if (!name || typeof name !== 'string' || !name.length) {
-    this.error('Discovery.stopAnouncement: bad name param: '+
-               util.inspect(name));
+  if (!is.nonEmptyStr(name)) {
+    debug('stopAnouncement: bad name param: '+util.inspect(name));
+    return false;
+  }
+
+  if (!is.nonEmptyObj(this.services)) {
+    debug('stopAnnounce: There are no services to stop');
     return false;
   }
 
   // the service has to be already known to stop announcing
-  if (!this.services || !this.services[name]) {
-    this.error('Discovery.stopAnnounce error: no entry for \''+name+'\'');
+  if (!this.services[name]) {
+    debug('Discovery.stopAnnounce error: no entry for \''+name+'\'');
     return false;
   }
 
   // if there is no task to do the announcing, quit
   if (!this.services[name].intervalId) {
-    this.error('Discovery.stopAnnounce error: not announcing \''+name+'\'');
+    debug('Discovery.stopAnnounce error: not announcing \''+name+'\'');
     return false;
   }
 
@@ -154,22 +147,20 @@ Discovery.prototype.stopAnnounce = function(name) {
  */
 Discovery.prototype.resumeAnnounce = function(name) {
   // we need a name that is a string which is not empty
-  if (!name || typeof name !== 'string' || !name.length) {
-    this.error('Discovery.resumeAnnounce error: invalid name: '+
-               util.inspect(name));
+  if (!is.nonEmptyStr(name)) {
+    debug('Discovery.resumeAnnounce error: invalid name: '+util.inspect(name));
     return false;
   }
 
   // the service has to be known to resume
   if (!this.services || !this.services[name]) {
-    this.error('Discovery.resumeAnnounce error: no entry for \''+name+'\'');
+    debug('resumeAnnounce error: no entry for \''+name+'\'');
     return false;
   }
 
   // there can't be an interval task doing announcing to resume
   if (this.services[name].intervalId) {
-    this.error('Discovery.resumeAnnounce error: already announcing \''+
-               name+'\'');
+    debug('resumeAnnounce error: already announcing \''+name+'\'');
     return false;
   }
 
@@ -189,15 +180,14 @@ Discovery.prototype.resumeAnnounce = function(name) {
  */
 Discovery.prototype.addNewAnnouncement = function(ann, rinfo) {
   // ensure the ann is an object that is not empty
-  if (!ann || typeof ann !== 'object' || !Object.keys(ann).length) {
-    this.error('Discovery.addNewAnnouncement error: bad announcement: '+
-               util.inspect(ann));
+  if (!is.nonEmptyObj(ann)) {
+    debug('addNewAnnouncement error: bad announcement: '+util.inspect(ann));
     return false;
   }
 
   // also, the ann obj needs a name
-  if (!ann.name) {
-    this.error('Discovery.addNewAnnouncement error: no name.');
+  if (!is.nonEmptyStr(ann.name)) {
+    debug('Discovery.addNewAnnouncement error: no name.');
     return false;
   }
   // add defaults, if needed
@@ -220,8 +210,7 @@ Discovery.prototype.addNewAnnouncement = function(ann, rinfo) {
 
   // The entry should not already exist
   if (this.services[ann.name]) {
-    this.error('Discovery.addNewAnnouncement for \''+ann.name+
-               '\', but it already exists.');
+    debug('addNewAnnouncement for \''+ann.name+'\', but it already exists.');
     return false;
   }
 
@@ -263,14 +252,14 @@ Discovery.prototype.addNewAnnouncement = function(ann, rinfo) {
  */
 Discovery.prototype.handleAnnouncement = function(ann, rinfo) {
   // ensure the ann is an object that is not empty
-  if (!ann || typeof ann !== 'object' || !Object.keys(ann).length) {
-    this.error('Discovery.handleAnnouncement bad ann: '+util.inspect(ann));
+  if (!is.nonEmptyObj(ann)) {
+    debug('handleAnnouncement bad ann: '+util.inspect(ann));
     return false;
   }
 
   // also, the ann obj needs a name
   if (!ann.name) {
-    this.error('Discovery.handleAnnouncement error: no name.');
+    debug('handleAnnouncement error: no name.');
     return false;
   }
 
@@ -306,33 +295,6 @@ Discovery.prototype.getService = function(name) {
 };
 
 /**
- * Optionally display error messages to the console.
- * @param {String} err An error string to display.
- * @private
- */
-Discovery.prototype.error = function(err) {
-  if (this.debug)  console.error(err);
-};
-
-/**
- * Optionally display warning messages to the console.
- * @param {String} err An error string to display.
- * @private
- */
-Discovery.prototype.warn = function(err) {
-  if (this.debug)  console.warn(err);
-};
-
-/**
- * Optionally display log messages to the console.
- * @param {String} msg An log string to display.
- * @private
- */
-Discovery.prototype.log = function(msg) {
-  if (this.debug)  console.warn(msg);
-};
-
-/**
  * Setup to send announcements for a service over UDP multicast.
  * @return {Boolean} true, if successful false otherwise.
  * @private
@@ -340,8 +302,7 @@ Discovery.prototype.log = function(msg) {
 function sendAnnounce(discObj, servObj) {
   var str = objToJsonStr(servObj);
   if (!str) {
-    discObj.error('sendAnnounce error: can\'t stringify: '+
-                  util.inspect(servObj));
+    debug('sendAnnounce error: can\'t stringify: '+util.inspect(servObj));
     return;
   }
 
@@ -358,12 +319,15 @@ function sendAnnounce(discObj, servObj) {
 function handleTimeOut(discObj) {
   // ensure we have an object
   if (!discObj || typeof discObj !== 'object') {
-    discObj.error('handleTimeOut bad object received:'+util.inspect(discObj));
+    debug('handleTimeOut bad object received: '+util.inspect(discObj));
     return;
   }
 
   // Also the object should have a services storage on it
-  if (!discObj.services) return;
+  if (!discObj.services || !Object.keys(discObj.services).length) {
+    debug('handleTimeOut no services, exiting.');
+    return;
+  }
 
   var now = Date.now();             // timestamp in ms
   var services = discObj.services;  // quick ref for storage
@@ -372,18 +336,21 @@ function handleTimeOut(discObj) {
   for (var serv in services) {
     // every object should have a timestamp - what's up here?
     if (!services[serv].lastAnnTm) {
-      discObj.error('Service \''+serv+'\' has no time stamp. Adding one.');
+      debug('handleTimeOut: service \''+serv+'\' has no time stamp. Adding one.');
       services[serv].lastAnnTm = Date.now();
       continue;
     }
 
+    //debug('loop: '+util.inspect(services[serv]));
+    debug('time: '+(now-services[serv].lastAnnTm));
+
     // if the time since the last announce is greater than 2X the announcement
     // interval, we timed out.
     if ((now - services[serv].lastAnnTm) > 2*services[serv].data.annInterval) {
-      // emit an event to denote the change in status
-      discObj.emit('available', serv, false, services[serv].data, 'timedOut');
-      // delete the entry
+      var data = services[serv].data;
+      data.available = false;
       delete services[serv];
+      discObj.emit('available', serv, data.available, data, 'timedOut');
     }
   }
 }
@@ -401,6 +368,7 @@ function copyObj(obj) {
   try {
     newObj = JSON.parse(JSON.stringify(obj));
   } catch(err) {
+    debug('copyObj error: '+err.message);
     return false;
   }
   return newObj;
@@ -418,6 +386,7 @@ function jsonStrToObj(str) {
   try {
     obj = JSON.parse(str);
   } catch(err) {
+    debug('jsonStrToObj error: '+err.message);
     return false;
   }
   return obj;
@@ -434,6 +403,7 @@ function objToJsonStr(obj) {
   try {
     str = JSON.stringify(obj);
   } catch(err) {
+    debug('objToJsonStr error: '+err.message);
     return false;
   }
   return str;

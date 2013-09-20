@@ -1,12 +1,13 @@
 'use strict';
 var assert = require('assert');
-var getDiscovery = require('../index.js').getDiscovery;
-var discover = getDiscovery();
+var Discovery = require('../index.js').Discovery;
+var discover = new Discovery();
 
 var serv = {
   name: 'test',
   port: 80,
   proto: 'tcp',
+  annInterval: 1000,
   addrFamily: 'IPv4',
   userData: {
     name: 'Edmond',
@@ -19,9 +20,9 @@ var count = 0;
 
 describe('Discover announce initial & time out events', function() {
   it('Should send a single initial event and then a time out', function(cb) {
-    this.timeout(11000);
+    this.timeout(22000);
+    console.log('here');
     discover.on('available', function(name, available, msg, reason) {
-      console.log('available',reason);
       count++;
       if (count === 1)
         assert.ok(reason==='new');
@@ -32,9 +33,8 @@ describe('Discover announce initial & time out events', function() {
     });
 
     discover.announce(serv);
-
     setTimeout(function() {
       discover.stopAnnounce('test');
-    }, 5000);
+    }, 500);
   });
 });
