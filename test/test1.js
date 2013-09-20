@@ -9,7 +9,7 @@ var serv = {
   proto: 'tcp',
   annInterval: 1000,
   addrFamily: 'IPv4',
-  userData: {
+  moreData: {
     name: 'Edmond',
     day: 2233,
     week: [ 'monday', 'tuesday', 'wednesday', 'thursday', 'friday' ]
@@ -21,7 +21,6 @@ var count = 0;
 describe('Discover announce initial & time out events', function() {
   it('Should send a single initial event and then a time out', function(cb) {
     this.timeout(22000);
-    console.log('here');
     discover.on('available', function(name, available, msg, reason) {
       count++;
       if (count === 1)
@@ -32,7 +31,7 @@ describe('Discover announce initial & time out events', function() {
       }
     });
 
-    discover.announce(serv);
+    discover.announce('test', 500, serv, true);
     setTimeout(function() {
       discover.stopAnnounce('test');
     }, 500);

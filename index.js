@@ -20,7 +20,6 @@ var is = require('is2');
 var MULTICAST_ADDRESS = '224.0.0.234';
 var MULTICAST_PORT = 44201;
 var TIMEOUT_INT = 1000;
-var DEFAULT_ANN_INT = 3000;
 var DEFAULT_DGRAM_TYPE = 'udp4';
 
 // We use events and must inherit from events.EventEmitter
@@ -82,27 +81,38 @@ function Discovery(options) {
 
 /**
  * Sets up announcements for a service.
- * @param {Object} serviceObject An object describing the service to announce.
+ * @param {String} name The name of the service to announce.
+ * @param {Number} interval The duration between announcements.
+ * @param {Object} userData Any data the user desires, must be serializable to
+ * JSON
+ * @param {Boolean} [available] OPtional parameter setting the state of the
+ * service. If not included, the default is true meaning available.
  * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.announce = function(serviceObject) {
-  if (!is.nonEmptyObj(serviceObject)) {
-    debug('announce error: bad service object: '+util.inspect(serviceObject));
-  }
-  if (!serviceObject.name) {
-    debug('accounce error: mssing name: '+util.inspect(serviceObject));
+Discovery.prototype.announce = function(name, interval, userData, available) {
+  if (!is.nonEmptyStr(name)) {
+    debug('accounce error: missing name: '+util.inspect(name));
     return false;
   }
+
+  if (!is.positiveNum(interval)) {
+    debug('accounce error: bad interval: '+util.inspect(interval));
+    return false;
+  }
+
+  if (!userData) {
+    debug('announce error: no userData: what is being announced?');
+    return false;
+  }
+
+  if (!available)  available = true;
 
   // make a copy of the object
-  var copy = copyObj(serviceObject);
-  if (!copy) {
-    debug('announce error: bad serviceObject: '+util.inspect(serviceObject));
-    return false;
-  }
+  var userDataCopy = copyObj(userData);
+  if (!userDataCopy)  return false;
 
   // attempt to add the announcement return result to user
-  return this.addNewAnnouncement(copy);
+  return this.addNewAnnouncement(name, interval, userDataCopy, available);
 };
 
 /**
@@ -143,9 +153,10 @@ Discovery.prototype.stopAnnounce = function(name) {
 /**
  * Resumes announcements for a service.
  * @param {String} name The name of the service to resume announcements.
+ * @param {Number} interval The duration in ms between announcements.
  * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.resumeAnnounce = function(name) {
+Discovery.prototype.resumeAnnounce = function(name, interval) {
   // we need a name that is a string which is not empty
   if (!is.nonEmptyStr(name)) {
     debug('Discovery.resumeAnnounce error: invalid name: '+util.inspect(name));
@@ -164,10 +175,12 @@ Discovery.prototype.resumeAnnounce = function(name) {
     return false;
   }
 
+  if (interval)  this.services[name].annInterval = interval;
+
   // create an interval task and store the id
   this.services[name].intervalId = setInterval(sendAnnounce,
                                        this.services[name].annInterval, this,
-                                       this.services[name].data);
+                                       this.services[name]);
   return true;
 };
 
@@ -178,74 +191,65 @@ Discovery.prototype.resumeAnnounce = function(name) {
  * @param {Object} ann An announcement describing the service.
  * @param {Object} rinfo An object describing the sender with address, etc.
  */
-Discovery.prototype.addNewAnnouncement = function(ann, rinfo) {
-  // ensure the ann is an object that is not empty
-  if (!is.nonEmptyObj(ann)) {
-    debug('addNewAnnouncement error: bad announcement: '+util.inspect(ann));
+Discovery.prototype.addNewAnnouncement = function(name, interval, userData,
+                                                  available) {
+  if (!is.nonEmptyStr(name)) {
+    debug('addNewAnnouncement error: missing name: '+util.inspect(name));
     return false;
   }
 
-  // also, the ann obj needs a name
-  if (!is.nonEmptyStr(ann.name)) {
-    debug('Discovery.addNewAnnouncement error: no name.');
+  if (!is.positiveNum(interval)) {
+    debug('addNewAnnouncement error: bad interval: '+util.inspect(interval));
     return false;
   }
+
+  if (!userData) {
+    debug('addNewAnnouncement error: no userData: what is being announced?');
+    return false;
+  }
+
   // add defaults, if needed
-  if (!ann.proto)  ann.proto = 'tcp';
-  if (!ann.addrFamily)  ann.addrFamily = 'IPv4';
-  if (!ann.annInterval)  ann.annInterval = DEFAULT_ANN_INT;
-  if (!ann.available)  ann.available = true;
+  if (!available)  available = true;
 
-  // set the name property to be read-only - it would be confusing if it changed
-  // as it is the key.
-  Object.defineProperty(ann, 'name', {
-    value: ann.name,
-    writable: false,
-    enumerable: true,
-    configurable: true
-  });
 
   // create the services storage if need be
   if (!this.services)  this.services = {};
 
   // The entry should not already exist
-  if (this.services[ann.name]) {
-    debug('addNewAnnouncement for \''+ann.name+'\', but it already exists.');
+  if (this.services[name]) {
+    debug('addNewAnnouncement for \''+name+'\', but it already exists.');
     return false;
   }
 
-  this.services[ann.name] = {};
-  this.services[ann.name].data = ann;
+  this.services[name] = {};
+  //this.services[name].name = name;
+  this.services[name].interval = interval;
+  this.services[name].data = userData;
+  this.services[name].available = available;
+
+  // set the name property to be read-only - it would be confusing if it changed
+  // as it is also the key.
+  Object.defineProperty(this.services[name], 'name', {
+    value: name,
+    writable: false,
+    enumerable: true,
+    configurable: true
+  });
+
   // since it's new - send an event
-  this.emit('available', ann.name, ann.available, ann, 'new');
-
-  // save the previous availability
-  var oldAvail = this.services[ann.name].data.available;
-  this.services[ann.name].data = ann;
-
-  // if there is no host set, grab the host from rinfo
-  if (rinfo && rinfo.address) {
-    var host = this.services[ann.name].data.host;
-    if (!host || typeof host !== 'string' || !host.length)
-      this.services[ann.name].data.host = rinfo.address;
-  }
+  this.emit('available', name, available, userData, 'new');
 
   // update the lanst announcement time to now
-  this.services[ann.name].lastAnnTm = Date.now();
+  this.services[name].lastAnnTm = Date.now();
 
   // create an interval task to repeatedly send announcements
-  this.services[ann.name].intervalId = setInterval(sendAnnounce,
-                                                   ann.annInterval, this, ann);
-
-  // if the availability changed, send an event
-  if (ann.available !== oldAvail)
-    this.emit('available', ann.name, ann.available, ann, 'availabilityChange');
-
+  this.services[name].intervalId = setInterval(sendAnnounce, interval, this,
+                                               this.services[name]);
   return true;
 };
 
 /**
- * Resumes announcements for a service.
+ * Receives and processes announcements for a service.
  * @param {String} name The name of the service to resume announcements.
  * @param {Object} rinfo An object with the sender's address information.
  * @return {Boolean} true, if successful false otherwise.
@@ -266,15 +270,23 @@ Discovery.prototype.handleAnnouncement = function(ann, rinfo) {
   // two cases, if the entry exists or does not
   if (this.services && this.services[ann.name]) {
     // this is an existing entry
-    var oldAvail = this.services[ann.name].data.available;
+    var oldAvail = this.services[ann.name].available;
     // update the lanst announcement time to now
     this.services[ann.name].lastAnnTm = Date.now();
+    this.services[ann.name].data = ann.data;
+
+    // if there is no host set, grab the host from rinfo
+    if (rinfo && rinfo.address) {
+      if (!is.nonEmptyStr(this.services[ann.name].host))
+        this.services[ann.name].host = rinfo.address;
+    }
+
     // if the availability changed, send an event
     if (ann.available !== oldAvail)
       this.emit('available', ann.name, ann.available, ann, 'availabilityChange');
   } else {
     // the entry is new, add it
-    return this.addNewAnnouncement(ann, rinfo);
+    return this.addNewAnnouncement(ann);
   }
 
   return true;
@@ -299,12 +311,13 @@ Discovery.prototype.getService = function(name) {
  * @return {Boolean} true, if successful false otherwise.
  * @private
  */
-function sendAnnounce(discObj, servObj) {
-  var str = objToJsonStr(servObj);
-  if (!str) {
-    debug('sendAnnounce error: can\'t stringify: '+util.inspect(servObj));
-    return;
-  }
+function sendAnnounce(discObj, data) {
+  // make a copy
+  var copy = copyObj(data);
+  delete copy.lastAnnTm;
+  delete copy.intervalId;
+  var str = objToJsonStr(copy);
+  if (!str)  return;
 
   // send the stringified buffer over multicast
   var buf = new Buffer(str);

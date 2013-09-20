@@ -34,7 +34,7 @@ describe('Discover time out', function() {
       }
     });
 
-    discover.announce(serv);
+    discover.announce('test', 500, serv, true);
     discover.stopAnnounce('test');
   });
 });
