@@ -1,5 +1,4 @@
 #sc-discovery
----
 This module provides discovery services for super-cluster using UDP multicast.
 Later, an expanded implementation able to scaled up to a few thousand instances
 and work across wide area networks.
@@ -8,7 +7,7 @@ For now, this implements the zero-configuration UDP multicast discovery. This
 works only between nodes on the same subnet as typically, broadcast packets
 don't route.
 
-## Discovery Object Interface
+## Discovery API
 
 ### new Discovery([options])
 
@@ -22,7 +21,7 @@ options are available:
   interfaces.
 * {String} `dgramType` - Either 'udp4' or 'udp6'. Default: 'udp4'.
 
-### Discovery.announce\(name, interval, userData \[,available\]\)
+### Discovery.announce\(name, userData, \[,interval\] \[,available\]\)
 Starts announcing the service at the specified interval. The parameter,
 `serviceObject`, is an object describing the service that sc-discovery
 announces.
@@ -50,8 +49,6 @@ Halts announcements.
 
 Resumes the announcements at the time interval.
 
-#### Discovery.
-
 #### Discovery.getData\(name\)
 - {String} `name `- The name of the service.
 - returns: {Object} The serviceObject from announce.
@@ -60,7 +57,7 @@ Returns the service object, which can be modified. For example, if you need to
 alter the `userData`, you can. You cannot, however, alter the name (it's a
 constant property).
 
-#### Discovery.update\(name, userData [, interval\] \[,available\]\)
+#### Discovery.update\(name, userData \[,interval\] \[,available\]\)
 Updates the existing service.
 
 * {String} `name` The name of the service being announced. It must be unique, or it will
@@ -69,7 +66,6 @@ Updates the existing service.
 * {Number} [`interval`] Optional duration between announcements in milliseconds.
 * {Boolean} [`available`] Optional parameter to set availability of the service. If not
   specified, the default is 'true', meaning available.
-
 
 #### Discovery Events
 
