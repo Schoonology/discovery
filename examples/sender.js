@@ -4,11 +4,11 @@ var discover = new Discovery();
 
 var name = 'test';
 var interval = 500;
+var available = true;
 
 var serv = {
   port: 80,
   proto: 'tcp',
-  annInterval: 500,
   addrFamily: 'IPv4',
   bonus: {
     name: 'Edmond',
@@ -17,4 +17,4 @@ var serv = {
   }
 };
 
-discover.announce(name, interval, serv);
+discover.announce(name, serv, interval, available);

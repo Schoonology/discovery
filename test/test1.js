@@ -4,7 +4,6 @@ var Discovery = require('../index.js').Discovery;
 var discover = new Discovery();
 
 var serv = {
-  name: 'test',
   port: 80,
   proto: 'tcp',
   annInterval: 1000,
@@ -21,19 +20,23 @@ var count = 0;
 describe('Discover announce initial & time out events', function() {
   it('Should send a single initial event and then a time out', function(cb) {
     this.timeout(22000);
-    discover.on('available', function(name, available, msg, reason) {
+    discover.on('available', function(name, data, reason) {
       count++;
-      if (count === 1)
-        assert.ok(reason==='new');
-      if (count === 2) {
-        assert.ok(reason==='timedOut');
-        cb();
-      }
+      assert.ok(count === 1);
+      assert.ok(reason==='new');
     });
 
-    discover.announce('test', 500, serv, true);
+    discover.on('unavailable', function(name, data, reason) {
+      count++;
+      assert.ok(count === 2);
+      console.log('reason',reason);
+      assert.ok(reason==='timedOut');
+      cb();
+    });
+
+    discover.announce('test', serv, 500, true);
     setTimeout(function() {
-      discover.stopAnnounce('test');
+      discover.pause('test');
     }, 500);
   });
 });

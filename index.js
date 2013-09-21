@@ -18,9 +18,10 @@ var is = require('is2');
 
 // Constants
 var MULTICAST_ADDRESS = '224.0.0.234';
-var MULTICAST_PORT = 44201;
-var TIMEOUT_INT = 1000;
-var DEFAULT_DGRAM_TYPE = 'udp4';
+var DEFAULT_UDP_PORT = 44201;
+var DEFAULT_TIMEOUT = 1000;
+var DEFAULT_INTERVAL = 3000;
+var DEFAULT_DGRAM_TYPE = 'udp4'; // could also be 'udp6'
 
 // We use events and must inherit from events.EventEmitter
 util.inherits(Discovery, events.EventEmitter);
@@ -33,7 +34,7 @@ exports.Discovery = Discovery;
  *     44201
  *   - bindAddr - bind to an address
  *   - dgramType - Either 'udp4' or 'udp6', default: 'udp4'.
- *   - debug - display debug messages to the console, default: false
+ *   - timeOutInt - duration of time between timeout checks in ms. Default 1000.
  *
  * @param {Object} options A configuration object.
  * @constructor
@@ -52,16 +53,17 @@ function Discovery(options) {
   self.dgramType = (options && options.dgramType) ?
                     options.dgramType.toLowerCase() : DEFAULT_DGRAM_TYPE;
   self.socket = dgram.createSocket(self.dgramType);
-  self.port = (options && options.port) ? options.port : MULTICAST_PORT;
+  self.port = (options && options.port) ? options.port : DEFAULT_UDP_PORT;
   self.bindAddr = (options && options.bindAddr) ? options.bindAddr : undefined;
   self.socket.bind(self.port, self.bindAddr);
 
   // create an interval task to check for announcements that have timed out
-  self.timeOutId = setInterval(handleTimeOut, TIMEOUT_INT, self);
+  self.timeOutInt = (options && options.timeOutInt) ? options.timeOutInt :
+                    DEFAULT_TIMEOUT;
+  self.timeOutId = setInterval(handleTimeOut, self.timeOutInt, self);
 
   // listen and listen for multicast packets
   self.socket.on('listening', function() {
-    //if (!multicast) self.socket.setMulticastTTL(0);
     self.socket.addMembership(MULTICAST_ADDRESS);
   });
 
@@ -81,22 +83,17 @@ function Discovery(options) {
 
 /**
  * Sets up announcements for a service.
- * @param {String} name The name of the service to announce.
- * @param {Number} interval The duration between announcements.
+ * @param {String} name The name of the service to announce. Required.
  * @param {Object} userData Any data the user desires, must be serializable to
- * JSON
+ * JSON. Required.
+ * @param {Number} interval The duration between announcements. Default 3000 ms.
  * @param {Boolean} [available] OPtional parameter setting the state of the
  * service. If not included, the default is true meaning available.
  * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.announce = function(name, interval, userData, available) {
+Discovery.prototype.announce = function(name, userData, interval, available) {
   if (!is.nonEmptyStr(name)) {
     debug('accounce error: missing name: '+util.inspect(name));
-    return false;
-  }
-
-  if (!is.positiveNum(interval)) {
-    debug('accounce error: bad interval: '+util.inspect(interval));
     return false;
   }
 
@@ -105,22 +102,25 @@ Discovery.prototype.announce = function(name, interval, userData, available) {
     return false;
   }
 
+  if (!is.positiveNum(interval))  interval = 3000;
   if (!available)  available = true;
 
-  // make a copy of the object
+  // make a copy of the userData object
   var userDataCopy = copyObj(userData);
   if (!userDataCopy)  return false;
+  debug('userDataCopy:'+util.inspect(userDataCopy));
 
   // attempt to add the announcement return result to user
-  return this.addNewAnnouncement(name, interval, userDataCopy, available);
+  var announce = true;
+  return this.addNew(name, userDataCopy, interval, available, announce);
 };
 
 /**
- * Stops announcements for a service.
+ * Pause announcements for a service.
  * @param {String} name The name of the service to resume announcements.
  * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.stopAnnounce = function(name) {
+Discovery.prototype.pause = function(name) {
   // we have to have a name that is string and not empty
   if (!is.nonEmptyStr(name)) {
     debug('stopAnouncement: bad name param: '+util.inspect(name));
@@ -156,7 +156,7 @@ Discovery.prototype.stopAnnounce = function(name) {
  * @param {Number} interval The duration in ms between announcements.
  * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.resumeAnnounce = function(name, interval) {
+Discovery.prototype.resume = function(name, interval) {
   // we need a name that is a string which is not empty
   if (!is.nonEmptyStr(name)) {
     debug('Discovery.resumeAnnounce error: invalid name: '+util.inspect(name));
@@ -185,47 +185,84 @@ Discovery.prototype.resumeAnnounce = function(name, interval) {
 };
 
 /**
- * Adds new announcements to the services object. Takes care of adding missing
- * values that have defaults, making the name property constant, and emitting
- * the correct events.
- * @param {Object} ann An announcement describing the service.
- * @param {Object} rinfo An object describing the sender with address, etc.
+ * Allows for updating of service data.
+ * @param {String} name The name of the service to update. Required.
+ * @param {Object} userData Any data the user desires, must be serializable to
+ * JSON. Required.
+ * @param {Number} interval The duration between announcements. Default 3000 ms.
+ * @param {Boolean} [available] OPtional parameter setting the state of the
+ * service. If not included, the default is true meaning available.
+ * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.addNewAnnouncement = function(name, interval, userData,
-                                                  available) {
+Discovery.prototype.update = function(name, userData, interval, available) {
   if (!is.nonEmptyStr(name)) {
-    debug('addNewAnnouncement error: missing name: '+util.inspect(name));
-    return false;
-  }
-
-  if (!is.positiveNum(interval)) {
-    debug('addNewAnnouncement error: bad interval: '+util.inspect(interval));
+    debug('update error: missing name: '+util.inspect(name));
     return false;
   }
 
   if (!userData) {
-    debug('addNewAnnouncement error: no userData: what is being announced?');
+    debug('update error: no userData: what is being announced?');
+    return false;
+  }
+
+  if (!is.positiveNum(interval))  interval = DEFAULT_INTERVAL;
+  if (!available)  available = true;
+
+  // make a copy of the userData object
+  var userDataCopy = copyObj(userData);
+  if (!userDataCopy)  return false;
+
+  // attempt to add the announcement return result to user
+  return this.updateExisting(name, userDataCopy, interval, available);
+};
+/**
+ * Adds new announcements to the services object. Takes care of adding missing
+ * values that have defaults, making the name property constant, and emitting
+ * the correct events.
+ * @param {String} name The name of the service to announce. Required.
+ * @param {Object} userData Any data the user desires, must be serializable to
+ * JSON. Required.
+ * @param {Number} interval The duration between announcements. Default 3000 ms.
+ * @param {Boolean} [available] OPtional parameter setting the state of the
+ * service. If not included, the default is true meaning available.
+ * @param {Boolean} [announce] Optional parameter do we send the net
+ * announcement.
+ *
+ * @return {Boolean} true, if successful false otherwise.
+ */
+Discovery.prototype.addNew = function(name, userData, interval,
+                                                  available, announce) {
+  debug('addNew');
+  if (!is.nonEmptyStr(name)) {
+    debug('addNew error: missing name: '+util.inspect(name));
+    console.trace();
+    return false;
+  }
+
+  if (!userData) {
+    debug('addNew error: no userData: what is being announced?');
     return false;
   }
 
   // add defaults, if needed
+  if (!is.positiveNum(interval))  interval = 3000;
   if (!available)  available = true;
-
 
   // create the services storage if need be
   if (!this.services)  this.services = {};
 
   // The entry should not already exist
   if (this.services[name]) {
-    debug('addNewAnnouncement for \''+name+'\', but it already exists.');
+    debug('addNew for \''+name+'\', but it already exists.');
     return false;
   }
 
   this.services[name] = {};
-  //this.services[name].name = name;
+  this.services[name].name = name;
   this.services[name].interval = interval;
   this.services[name].data = userData;
   this.services[name].available = available;
+  this.services[name].announce = announce;
 
   // set the name property to be read-only - it would be confusing if it changed
   // as it is also the key.
@@ -236,21 +273,62 @@ Discovery.prototype.addNewAnnouncement = function(name, interval, userData,
     configurable: true
   });
 
+  debug('userData: '+util.inspect(userData));
+
   // since it's new - send an event
-  this.emit('available', name, available, userData, 'new');
+  var evName = available ? 'available' : 'unavailable';
+  this.emit(evName, name, userData, 'new');
 
   // update the lanst announcement time to now
   this.services[name].lastAnnTm = Date.now();
 
   // create an interval task to repeatedly send announcements
-  this.services[name].intervalId = setInterval(sendAnnounce, interval, this,
+  if (announce) {
+    this.services[name].intervalId = setInterval(sendAnnounce, interval, this,
                                                this.services[name]);
+  }
+
+  return true;
+};
+
+/**
+ * update an existing service entry. Only works on services created locally.
+ * @param {String} name The name of the service to announce. Required.
+ * @param {Object} userData Any data the user desires, must be serializable to
+ * JSON. Required.
+ * @param {Number} interval The duration between announcements. Default 3000 ms.
+ * @param {Boolean} [available] OPtional parameter setting the state of the
+ * service. If not included, the default is true meaning available.
+ * @param {Object} [rinfo] Optional parameter for remote address
+ *
+ */
+Discovery.prototype.updateExisting = function(name, data, interval, available,
+                                             rinfo) {
+  // this is an existing entry
+  var oldAvail = this.services[name].available;
+  // update the lanst announcement time to now
+  this.services[name].interval = interval;
+  this.services[name].data = data;
+
+  // if there is no host set, grab the host from rinfo
+  if (rinfo && rinfo.address) {
+    if (!is.nonEmptyStr(this.services[name].host))
+      this.services[name].host = rinfo.address;
+  }
+
+  // if the availability changed, send an event
+  if (available !== oldAvail) {
+    this.services[name].available = available;
+    var evName = available ? 'available' : 'unavailable';
+    this.emit(evName, name, data, 'availabilityChange');
+  }
+
   return true;
 };
 
 /**
  * Receives and processes announcements for a service.
- * @param {String} name The name of the service to resume announcements.
+ * @param {Object} ann The object describing the service.
  * @param {Object} rinfo An object with the sender's address information.
  * @return {Boolean} true, if successful false otherwise.
  */
@@ -263,33 +341,22 @@ Discovery.prototype.handleAnnouncement = function(ann, rinfo) {
 
   // also, the ann obj needs a name
   if (!ann.name) {
+    debug(util.inspect(ann));
     debug('handleAnnouncement error: no name.');
     return false;
   }
 
-  // two cases, if the entry exists or does not
+  // The entry exists, update it
   if (this.services && this.services[ann.name]) {
-    // this is an existing entry
-    var oldAvail = this.services[ann.name].available;
-    // update the lanst announcement time to now
+    debug('here - handleAnn');
     this.services[ann.name].lastAnnTm = Date.now();
-    this.services[ann.name].data = ann.data;
-
-    // if there is no host set, grab the host from rinfo
-    if (rinfo && rinfo.address) {
-      if (!is.nonEmptyStr(this.services[ann.name].host))
-        this.services[ann.name].host = rinfo.address;
-    }
-
-    // if the availability changed, send an event
-    if (ann.available !== oldAvail)
-      this.emit('available', ann.name, ann.available, ann, 'availabilityChange');
-  } else {
-    // the entry is new, add it
-    return this.addNewAnnouncement(ann);
+    return this.updateExisting(ann.name, ann.data, ann.interval, ann.available,
+                               rinfo);
   }
 
-  return true;
+  // the entry is new, add it
+  var announce = false;
+  return this.addNew(ann.name, ann.data, ann.interval, ann.available, announce);
 };
 
 /**
@@ -298,7 +365,7 @@ Discovery.prototype.handleAnnouncement = function(ann, rinfo) {
  * @return {Object|Boolean} The object describing the srevice if available, and
  *   false otherwise.
  */
-Discovery.prototype.getService = function(name) {
+Discovery.prototype.getData = function(name) {
   // handle conditions for which there is no answer
   if (!name || typeof name !== 'string' || !name.length)  return false;
   if (!this.services || !this.services[name])  return false;
@@ -349,21 +416,22 @@ function handleTimeOut(discObj) {
   for (var serv in services) {
     // every object should have a timestamp - what's up here?
     if (!services[serv].lastAnnTm) {
-      debug('handleTimeOut: service \''+serv+'\' has no time stamp. Adding one.');
-      services[serv].lastAnnTm = Date.now();
+      debug('handleTimeOut: service \''+serv+'\' has no time stamp. Adding '+
+            'one.');
+      //services[serv].lastAnnTm = Date.now();
       continue;
     }
 
-    //debug('loop: '+util.inspect(services[serv]));
-    debug('time: '+(now-services[serv].lastAnnTm));
-
+    debug('here on: '+serv);
     // if the time since the last announce is greater than 2X the announcement
     // interval, we timed out.
-    if ((now - services[serv].lastAnnTm) > 2*services[serv].data.annInterval) {
+    debug('(now - services[serv].lastAnnTm):'+(now - services[serv].lastAnnTm));
+    debug('(2*services[serv].interval): %s',(2*services[serv].interval));
+    if ((now - services[serv].lastAnnTm) > (2*services[serv].interval)) {
       var data = services[serv].data;
       data.available = false;
       delete services[serv];
-      discObj.emit('available', serv, data.available, data, 'timedOut');
+      discObj.emit('unavailable', serv, data, 'timedOut');
     }
   }
 }

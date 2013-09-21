@@ -4,8 +4,6 @@ var Discovery = require('../index.js').Discovery;
 var discover = new Discovery();
 
 var serv = {
-  debug: true,
-  name: 'test',
   annInterval: 500,
   port: 80,
   proto: 'tcp',
@@ -22,19 +20,23 @@ var count = 0;
 describe('Discover time out', function() {
   it('Should remove the service from the table in less than 2100 ms', function(cb) {
     this.timeout(2100);
-    discover.on('available', function(name, available, msg, reason) {
+    discover.on('available', function(name, data, reason) {
       count++;
-      if (count === 1)
-        assert.ok(reason==='new');
-      if (count === 2) {
-        assert.ok(reason==='timedOut');
-        assert.ok(typeof discover.services !== 'undefined');
-        assert.ok(typeof discover.services.test === 'undefined');
-        cb();
-      }
+      assert.ok(count === 1);
+      assert.ok(reason==='new');
     });
 
-    discover.announce('test', 500, serv, true);
-    discover.stopAnnounce('test');
+    discover.on('unavailable', function(name, data, reason) {
+      count++;
+      assert.ok(count === 2);
+      console.log('reason',reason);
+      assert.ok(reason==='timedOut');
+      assert.ok(typeof discover.services !== 'undefined');
+      assert.ok(typeof discover.services.test === 'undefined');
+      cb();
+    });
+
+    discover.announce('test', serv, 500, true);
+    discover.pause('test');
   });
 });
