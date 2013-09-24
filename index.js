@@ -230,8 +230,8 @@ Discovery.prototype.update = function(name, userData, interval, available) {
  *
  * @return {Boolean} true, if successful false otherwise.
  */
-Discovery.prototype.addNew = function(name, userData, interval,
-                                                  available, announce) {
+Discovery.prototype.addNew = function(name, userData, interval, available,
+                                      announce, rinfo) {
   debug('addNew');
   if (!is.nonEmptyStr(name)) {
     debug('addNew error: missing name: '+util.inspect(name));
@@ -264,6 +264,11 @@ Discovery.prototype.addNew = function(name, userData, interval,
   this.services[name].available = available;
   this.services[name].announce = announce;
 
+  // if there is an rinfo, copy it and place it on the service
+  // we don't need the size parameter, though.
+  if (is.obj(rinfo) && is.nonEmptyStr(rinfo.address))
+    this.services[name].addr = rinfo.address;
+
   // set the name property to be read-only - it would be confusing if it changed
   // as it is also the key.
   Object.defineProperty(this.services[name], 'name', {
@@ -273,11 +278,9 @@ Discovery.prototype.addNew = function(name, userData, interval,
     configurable: true
   });
 
-  debug('userData: '+util.inspect(userData));
-
   // since it's new - send an event
   var evName = available ? 'available' : 'unavailable';
-  this.emit(evName, name, userData, 'new');
+  this.emit(evName, name, this.services[name], 'new');
 
   // update the lanst announcement time to now
   this.services[name].lastAnnTm = Date.now();
@@ -310,17 +313,16 @@ Discovery.prototype.updateExisting = function(name, data, interval, available,
   this.services[name].interval = interval;
   this.services[name].data = data;
 
-  // if there is no host set, grab the host from rinfo
-  if (rinfo && rinfo.address) {
-    if (!is.nonEmptyStr(this.services[name].host))
-      this.services[name].host = rinfo.address;
-  }
+  // if there is an rinfo, copy it and place it on the service
+  // we don't need the size parameter, though.
+  if (is.obj(rinfo) && is.str(rinfo.address) && !this.services[name].addr)
+    this.services[name].addr = rinfo.address;
 
   // if the availability changed, send an event
   if (available !== oldAvail) {
     this.services[name].available = available;
     var evName = available ? 'available' : 'unavailable';
-    this.emit(evName, name, data, 'availabilityChange');
+    this.emit(evName, name, this.services[name], 'availabilityChange');
   }
 
   return true;
@@ -341,14 +343,12 @@ Discovery.prototype.handleAnnouncement = function(ann, rinfo) {
 
   // also, the ann obj needs a name
   if (!ann.name) {
-    debug(util.inspect(ann));
     debug('handleAnnouncement error: no name.');
     return false;
   }
 
   // The entry exists, update it
   if (this.services && this.services[ann.name]) {
-    debug('here - handleAnn');
     this.services[ann.name].lastAnnTm = Date.now();
     return this.updateExisting(ann.name, ann.data, ann.interval, ann.available,
                                rinfo);
@@ -356,7 +356,8 @@ Discovery.prototype.handleAnnouncement = function(ann, rinfo) {
 
   // the entry is new, add it
   var announce = false;
-  return this.addNew(ann.name, ann.data, ann.interval, ann.available, announce);
+  return this.addNew(ann.name, ann.data, ann.interval, ann.available, announce,
+                     rinfo);
 };
 
 /**
@@ -413,25 +414,21 @@ function handleTimeOut(discObj) {
   var services = discObj.services;  // quick ref for storage
 
   // iterate over all the properties in hash object
-  for (var serv in services) {
+  for (var name in services) {
     // every object should have a timestamp - what's up here?
-    if (!services[serv].lastAnnTm) {
-      debug('handleTimeOut: service \''+serv+'\' has no time stamp. Adding '+
+    if (!services[name].lastAnnTm) {
+      debug('handleTimeOut: service \''+name+'\' has no time stamp. Adding '+
             'one.');
-      //services[serv].lastAnnTm = Date.now();
       continue;
     }
 
-    debug('here on: '+serv);
     // if the time since the last announce is greater than 2X the announcement
     // interval, we timed out.
-    debug('(now - services[serv].lastAnnTm):'+(now - services[serv].lastAnnTm));
-    debug('(2*services[serv].interval): %s',(2*services[serv].interval));
-    if ((now - services[serv].lastAnnTm) > (2*services[serv].interval)) {
-      var data = services[serv].data;
+    if ((now - services[name].lastAnnTm) > (2*services[name].interval)) {
+      var data = services[name].data;
       data.available = false;
-      delete services[serv];
-      discObj.emit('unavailable', serv, data, 'timedOut');
+      discObj.emit('unavailable', name, this.services[name], 'timedOut');
+      delete services[name];
     }
   }
 }
@@ -440,17 +437,29 @@ function handleTimeOut(discObj) {
  * A convenience function to copy an object. Must be an object that can be
  * serialized into JSON.
  * @param {Object} obj An object to be copied.
+ * @param {Array|Str} delProps A string or an array of properties to delete.
  * @return {Object|Boolean} returns the object copy or false, if there was an
  *   error.
  * @private
  */
-function copyObj(obj) {
+function copyObj(obj, delProps) {
   var newObj;
   try {
     newObj = JSON.parse(JSON.stringify(obj));
   } catch(err) {
     debug('copyObj error: '+err.message);
     return false;
+  }
+
+  // remove unwanted object properties.
+  if (delProps) {
+    if (is.str(delProps) && newObj[delProps]) {
+      delete newObj[delProps];
+    } else if (is.array(delProps)) {
+      for (var i=0; i<delProps.length; i++) {
+        delete newObj[i];
+      }
+    }
   }
   return newObj;
 }
