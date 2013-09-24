@@ -427,7 +427,7 @@ function handleTimeOut(discObj) {
     if ((now - services[name].lastAnnTm) > (2*services[name].interval)) {
       var data = services[name].data;
       data.available = false;
-      discObj.emit('unavailable', name, this.services[name], 'timedOut');
+      discObj.emit('unavailable', name, discObj.services[name], 'timedOut');
       delete services[name];
     }
   }
