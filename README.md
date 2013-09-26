@@ -1,4 +1,38 @@
-#sc-discovery
+# SuperCluster Discovery
+
+## Design
+
+The Registry is the cornerstone of the SuperCluster Discovery system. Each
+node in the cluster is expected to have at least one Registry, with that
+Registry being responsible for one or more local Services. Its Manager, in
+turn, synchronizes the Registry's understanding of the cluster and its
+remotely-available Services.
+
+### Services
+
+SuperCluster Discovery makes no assumptions about the format or purpose of
+Service objects save one: all Services must have a `name`. The Service interface
+merely provides a consistent interface for managing the metadata associated with
+ths service it represents and the announcements thereof.
+
+### Registry
+
+Each Registry is, in essence, a list of Service objects associated with a
+Manager to synchronize them across machines. Additionally, the Registry makes an
+internal distinction between "local" Services (those in the same process), and
+"remote" Services (those on other processes, even if they're on the same
+machine).
+
+### Managers
+
+Managers seek to broadcast the presence of a Registry's local Services while
+receiving broadcasts about the Services contained in other Registries. The
+Manager interface abstracts both the algorithm and transport(s) used for this
+synchronization; new transports and algorithms can be plugged into SuperCluster
+Discovery through the implementation of a new Manager and the assignment of that
+Manager as the `manager` option/property of all Registries within the system.
+
+
 This module provides discovery services for super-cluster using UDP multicast.
 Later, an expanded implementation able to scaled up to a few thousand instances
 and work across wide area networks.

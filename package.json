@@ -2,9 +2,9 @@
   "name": "sc-discovery",
   "version": "0.0.0",
   "description": "This module provides discovery services for supercluster.",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --reporter list"
+    "test": "mocha --reporter spec"
   },
   "repository": {
     "type": "git",
@@ -23,9 +23,11 @@
   "dependencies": {
     "debug": "~0.7.2",
     "is2": "~0.0.4",
-    "obj-to-json": "0.0.0"
+    "clone": "~0.1.10"
   },
   "devDependencies": {
-    "mocha": "~1.13.0"
+    "mocha": "~1.13.0",
+    "chai": "~1.8.0",
+    "nexpect": "~0.2.4"
   }
 }
