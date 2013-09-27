@@ -33,6 +33,43 @@ describe('Service', function () {
     });
   });
 
+  describe('emit', function () {
+    it('should be a no-op if local is false', function () {
+      var emitted = false;
+      var service = new discovery.Service({ name: 'true' });
+
+      service.on('test', function () {
+        emitted = true;
+      });
+
+      var retval = service.emit('test');
+
+      expect(retval).to.equal(false);
+      expect(emitted).to.equal(false);
+    });
+
+    it('should emit the event with the Service as data if local is true', function () {
+      var emitted = false;
+      var service = new discovery.Service({
+        name: 'true',
+        local: true
+      });
+
+      service.on('test', function (a, b, c) {
+        expect(a).to.equal(service);
+        expect(b).to.not.exist;
+        expect(c).to.not.exist;
+
+        emitted = true;
+      });
+
+      var retval = service.emit('test', 1, 2, 3);
+
+      expect(retval).to.equal(true);
+      expect(emitted).to.equal(true);
+    });
+  });
+
   describe('available', function () {
     it('should be writable', function () {
       var service = new discovery.Service({
@@ -49,7 +86,8 @@ describe('Service', function () {
       var emitted = false;
       var service = new discovery.Service({
         name: 'test',
-        available: false
+        available: false,
+        local: true
       });
 
       service.on('available', function () {
@@ -64,7 +102,8 @@ describe('Service', function () {
       var emitted = false;
       var service = new discovery.Service({
         name: 'test',
-        available: true
+        available: true,
+        local: true
       });
 
       service.on('unavailable', function () {
@@ -79,7 +118,8 @@ describe('Service', function () {
       var emitted = false;
       var service = new discovery.Service({
         name: 'test',
-        available: false
+        available: false,
+        local: true
       });
 
       service.on('available', function () {
@@ -122,7 +162,8 @@ describe('Service', function () {
     it('should emit update when called', function () {
       var emitted = false;
       var service = new discovery.Service({
-        name: 'test'
+        name: 'test',
+        local: true
       });
 
       service.on('update', function () {
