@@ -1,8 +1,11 @@
 var discovery = require('../../');
 var registry = discovery.createRegistry({ id: 'udp-updown' });
-var service = registry.createService({ name: 'test' });
+var service = registry.createService('test', { foo: 'bar' });
 
 setTimeout(function () {
-  service.down();
-  process.exit();
+  service.available = false;
 }, 100);
+
+setTimeout(function () {
+  process.exit(0);
+}, 200);
