@@ -1,5 +1,6 @@
 var assert = require('assert');
 var cluster = require('cluster');
+var debug = require('../lib/debug')('discovery:Test');
 var discovery = require('../');
 var registry = discovery.createRegistry();
 
@@ -36,13 +37,15 @@ function worker() {
 
   setInterval(function () {
     if (Math.random() < 0.5) {
+      debug('Flipping availability.');
       service.available = !service.available;
     } else {
+      debug('Updating.');
       service.update({
         updates: service.data.updates + 1
       });
     }
-  }, 1000);
+  }, 3000);
 }
 
 if (cluster.isMaster) {
