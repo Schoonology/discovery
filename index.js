@@ -13,7 +13,7 @@
 var dgram = require('dgram');
 var util = require('util');
 var events = require('events');
-var debug = require('debug')('sc-discovery');
+var debug = require('debug')('sc:discovery');
 var is = require('is2');
 
 // Constants
