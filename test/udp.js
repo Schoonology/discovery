@@ -204,4 +204,46 @@ describe('UDP Broadcast', function () {
         done();
       });
   });
+
+  it.only('up-update-update-down', function (done) {
+    registry.once('available', function (name, service, reason) {
+      expect(name).to.equal('test:udp-dblupdate');
+      expect(service.name).to.equal('test:udp-dblupdate');
+      expect(service.local).to.equal(false);
+      expect(service.data.foo).to.equal('bar');
+      expect(service.data.bar).to.not.exist;
+      expect(reason).to.equal('new');
+    });
+
+    registry.once('update', function (name, service, reason) {
+      expect(name).to.equal('test:udp-dblupdate');
+      expect(service.name).to.equal('test:udp-dblupdate');
+      expect(service.local).to.equal(false);
+      expect(service.data.foo).to.equal('bar');
+      expect(service.data.bar).to.equal('foo');
+      expect(reason).to.equal('update');
+    });
+
+    registry.once('unavailable', function (name, service, reason) {
+      expect(name).to.equal('test:udp-dblupdate');
+      expect(service.name).to.equal('test:udp-dblupdate');
+      expect(service.local).to.equal(false);
+      expect(service.data.foo).to.equal('bar');
+      expect(service.data.bar).to.equal('foo');
+      expect(reason).to.equal('availabilityChange');
+    });
+
+    common.forkServiceTest('udp-dblupdate')
+      .on('exit', function (code) {
+        expect(code).to.equal(0, 'Subprocess did not exit nicely.');
+
+        expect(events).to.deep.equal([
+          'available',
+          'update',
+          'unavailable'
+        ]);
+
+        done();
+      });
+  });
 });

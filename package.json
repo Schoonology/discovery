@@ -23,7 +23,8 @@
   "dependencies": {
     "debug": "~0.7.2",
     "is2": "~0.0.4",
-    "clone": "~0.1.10"
+    "clone": "~0.1.10",
+    "sigmund": "~1.0.0"
   },
   "devDependencies": {
     "mocha": "~1.13.0",
