@@ -24,8 +24,25 @@ function master() {
 
     total++;
 
-    assert(lastUpdate === updates[name] - 1, 'Missed ' + (updates[name] - lastUpdate) + ' updates from ' + name);
+    checkContinuity();
   });
+
+  return;
+
+  function checkContinuity() {
+    var i = 0, len = updates.length;
+    var missing = [];
+
+    for (; i < len; i++) {
+      if (!updates[i]) {
+        missing.push(i);
+      }
+    }
+
+    if (missing.length) {
+      console.log('Missing %s: %s', missing.length, missing);
+    }
+  }
 }
 
 function worker() {
@@ -33,25 +50,25 @@ function worker() {
 
   setTimeout(function () {
     service = registry.createService('worker' + process.pid, { updates: 0 });
-  }, 50);
 
-  setInterval(function () {
-    if (Math.random() < 0.5) {
-      debug('Flipping availability.');
-      service.available = !service.available;
-    } else {
-      debug('Updating.');
-      service.update({
-        updates: service.data.updates + 1
-      });
-    }
-  }, 3000);
+    setInterval(function () {
+      if (Math.random() < 0.5) {
+        debug('Flipping availability.');
+        service.available = !service.available;
+      } else {
+        debug('Updating.');
+        service.update({
+          updates: service.data.updates + 1
+        });
+      }
+    }, 10);
+  }, 50);
 }
 
 if (cluster.isMaster) {
   master();
 
-  cluster.fork(1);
+  cluster.fork();
 } else {
   worker();
 }
