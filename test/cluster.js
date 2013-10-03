@@ -48,21 +48,19 @@ function master() {
 function worker() {
   var service;
 
-  setTimeout(function () {
-    service = registry.createService('worker' + process.pid, { updates: 0 });
+  service = registry.createService('worker' + process.pid, { updates: 0 });
 
-    setInterval(function () {
-      if (Math.random() < 0.5) {
-        debug('Flipping availability.');
-        service.available = !service.available;
-      } else {
-        debug('Updating.');
-        service.update({
-          updates: service.data.updates + 1
-        });
-      }
-    }, 10);
-  }, 50);
+  setInterval(function () {
+    if (Math.random() < 0.5) {
+      debug('Flipping availability.');
+      service.available = !service.available;
+    } else {
+      debug('Updating.');
+      service.update({
+        updates: service.data.updates + 1
+      });
+    }
+  }, 10);
 }
 
 if (cluster.isMaster) {
