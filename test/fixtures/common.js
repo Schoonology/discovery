@@ -6,7 +6,10 @@ function forkServiceTest(name) {
 }
 
 function forkTracker() {
-  var tracker = fork(path.join(__dirname, '..', '..', 'bin', 'tracker'));
+  var tracker = fork(
+    path.join(__dirname, '..', '..', 'bin', 'tracker'),
+    ['--timeout', 200]
+  );
 
   tracker.on('message', function (message) {
     if (message === 'ready') {
