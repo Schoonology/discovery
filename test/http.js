@@ -8,8 +8,8 @@ describe('HTTP', function () {
   var tracker;
 
   beforeEach(function (done) {
-    // tracker = common.forkTracker();
-    // tracker.on('ready', function () {
+    tracker = common.forkTracker();
+    tracker.on('ready', function () {
       registry = discovery.createRegistry({
         manager: discovery.Http({ interval: 100 })
       });
@@ -31,16 +31,21 @@ describe('HTTP', function () {
       events = [];
 
       done();
-    // });
+    });
   });
 
-  afterEach(function () {
+  afterEach(function (done) {
     if (registry) {
       registry.destroy();
     }
 
     if (tracker) {
       tracker.kill();
+      tracker.on('exit', function () {
+        done();
+      });
+    } else {
+      done();
     }
   });
 
@@ -244,7 +249,7 @@ describe('HTTP', function () {
       });
   });
 
-  it.only('up-timeout', function (done) {
+  it('up-timeout', function (done) {
     var child;
 
     registry.on('available', function (name, service) {

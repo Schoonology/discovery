@@ -8,9 +8,11 @@ function forkServiceTest(name) {
 function forkTracker() {
   var tracker = fork(path.join(__dirname, '..', '..', 'bin', 'tracker'));
 
-  setTimeout(function () {
-    tracker.emit('ready');
-  }, 100);
+  tracker.on('message', function (message) {
+    if (message === 'ready') {
+      tracker.emit('ready');
+    }
+  });
 
   return tracker;
 }
