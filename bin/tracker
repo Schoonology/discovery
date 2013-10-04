@@ -1,0 +1,80 @@
+#!/usr/bin/env node
+var http = require('http');
+var discover = require('../');
+var debug = require('../lib/debug')('discovery:HttpTracker');
+var server = http.createServer(handleRequest);
+var port = 4201;
+var services = {};
+var timeoutTimerIds = {};
+var timeout = 7500;
+
+server.listen(port, function (err) {
+  if (err) {
+    console.error('Error trying to listen on %s: %s', port, err.stack || err.message || err);
+    process.exit(1);
+  }
+
+  debug('Listening on port %s', port);
+});
+
+function bufferRequest(req, callback) {
+  var buffer = '';
+
+  req
+    .on('data', function (chunk) {
+      buffer += String(chunk);
+    })
+    .on('end', function () {
+      callback(null, buffer);
+    })
+    .once('error', callback);
+}
+
+function handleRequest(req, res) {
+  bufferRequest(req, function (err, data) {
+    if (req.url !== '/' || req.method.toUpperCase() !== 'POST') {
+      return sendError(404);
+    }
+
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return sendError(400);
+    }
+
+    debug('Got message: %j', data);
+    debug('Req: %s %s', req.method, req.url);
+
+    if (typeof data.services === 'object') {
+      Object.keys(data.services).forEach(function (name) {
+        services[name] = data.services[name];
+
+        if (timeoutTimerIds[name]) {
+          clearTimeout(timeoutTimerIds[name]);
+        }
+
+        timeoutTimerIds[name] = setTimeout(function () {
+          timeoutTimerIds[name] = null;
+          debug('Timeout: %s', name);
+          services[name].available = false;
+        }, timeout);
+      });
+    }
+
+    res.statusCode = 200;
+    res.end(JSON.stringify(services));
+
+    return;
+
+    function sendError(code, message) {
+      if (!message) {
+        message = http.STATUS_CODES[code];
+      }
+
+      res.statusCode = code;
+      res.end(message);
+
+      debug('Error in %s %s : %s %s', req.method.toUpperCase(), req.url, code, message);
+    }
+  });
+}
