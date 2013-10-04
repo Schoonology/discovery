@@ -231,4 +231,38 @@ describe('UDP Broadcast', function () {
         done();
       });
   });
+
+  it('up-timeout', function (done) {
+    var child;
+
+    registry.on('available', function (name, service) {
+      expect(name).to.equal('test:udp-updown');
+      expect(service.name).to.equal('test:udp-updown');
+      expect(service.local).to.equal(false);
+      expect(service.data.foo).to.equal('bar');
+
+      child.kill();
+    });
+
+    registry.on('unavailable', function (name, service) {
+      expect(name).to.equal('test:udp-updown');
+      expect(service.name).to.equal('test:udp-updown');
+      expect(service.local).to.equal(false);
+      expect(service.data.foo).to.equal('bar');
+    });
+
+    registry.manager.timeout = 200;
+
+    child = common.forkServiceTest('udp-updown')
+      .on('exit', function () {
+        setTimeout(function () {
+          expect(events).to.deep.equal([
+            'available',
+            'unavailable'
+          ]);
+
+          done();
+        }, 200);
+      });
+  });
 });
