@@ -32,104 +32,118 @@ synchronization; new transports and algorithms can be plugged into SuperCluster
 Discovery through the implementation of a new Manager and the assignment of that
 Manager as the `manager` option/property of all Registries within the system.
 
+## API
 
-This module provides discovery services for super-cluster using UDP multicast.
-Later, an expanded implementation able to scaled up to a few thousand instances
-and work across wide area networks.
+### Registry `new discovery.Registry(options)` Alias: `discovery.createRegistry`
 
-For now, this implements the zero-configuration UDP multicast discovery. This
-works only between nodes on the same subnet as typically, broadcast packets
-don't route.
+Creates a new instance of Registry with the provided `options`.
 
-## Discovery API
+The Registry is the cornerstone of the SuperCluster Discovery system. Each
+node in the cluster is expected to have at least one Registry, with that
+Registry being responsible for one or more local Services. Its Manager, in
+turn, synchronizes the Registry's understanding of the cluster and its
+remotely-available Services.
 
-### new Discovery([options])
+#### destroy `registry.destroy()`
 
-Invokes the constructor to create an instance of Discovery to receive discovery
-events.  The config options object is optional, but if included, the following
-options are available:
+Signals a graceful shutdown of the Registry's and its Manager's internal
+resources.
 
-* {Number} `port` - The port to listen upon for service announcements. Default:
-  44201.
-* {String} `bindAddr` - The address to bind to. Default: listens to all
-  interfaces.
-* {String} `dgramType` - Either 'udp4' or 'udp6'. Default: 'udp4'.
+#### createService `registry.createService(name, [data], [available])`
 
-### Discovery.announce\(name, userData, \[,interval\] \[,available\]\)
-Starts announcing the service at the specified interval. The parameter,
-`serviceObject`, is an object describing the service that sc-discovery
-announces.
+Creates a new, local Service object to represent the named service. This
+Service will be synchronized via the Manager to all other Registry objects
+in its network. That is, all other Registry objects whose Managers are both
+compatible and reachable by this Registry's Manager will emit 'available'
+events for this Service.
 
-* {String} `name` The name of the service being announced. It must be unique, or it will
-  collide with another.
-* {Number} `interval` The duration between announcements in milliseconds.
-* {Any} `userData` Any data that can be serialized into JSON.
-* {Boolean} `available` Optional parameter to set availability of the service. If not
-  specified, the default is 'true', meaning available.
+### Service
 
-Any property with a default can be left out and the code supplies the default
-value. The name and data are required.
+#### update `service.update(data)`
 
-#### Discovery.pause\(name\)
-- {String} `name` The name of the service.
-- Returns true if successful, false otherwise.
+Merges `data` with the Service's existing `data` property. Returns `true` if
+the update was required (i.e. something was different), `false` otherwise
+(e.g. `data` remains unchanged).
 
-Halts announcements.
+#### toJSON `service.toJSON()`
 
-#### Discovery.resume\(name, \[,interval\]\\)
-- {String} `name` The name of the service.
-- {Number} `interval` Optional interval between announcements in ms.
-- Returns true if successful, false otherwise.
+Returns a JSON representation of the Service, omitting process-local
+details that are inappropriate within other processes, e.g. `local`.
 
-Resumes the announcements at the time interval.
+### Manager `new discovery.Manager(options)` Alias: `discovery.createManager`
 
-#### Discovery.getData\(name\)
-- {String} `name `- The name of the service.
-- returns: {Object} The serviceObject from announce.
+Creates a new instance of Manager with the provided `options`.
 
-Returns the service object, which can be modified. For example, if you need to
-alter the `userData`, you can. You cannot, however, alter the name (it's a
-constant property).
+This class provides the abstract interface for more specific Manager
+implementations.
 
-#### Discovery.update\(name, userData \[,interval\] \[,available\]\)
-Updates the existing service.
+See UdpBroadcastManager for a specific example.
 
-* {String} `name` The name of the service being announced. It must be unique, or it will
-  collide with another.
-* {Any} `userData` Any data that can be serialized into JSON.
-* {Number} [`interval`] Optional duration between announcements in milliseconds.
-* {Boolean} [`available`] Optional parameter to set availability of the service. If not
-  specified, the default is 'true', meaning available.
+#### destroy `manager.destroy()`
 
-#### Discovery Events
+Signals a graceful shutdown of the Manager's internal resources.
 
-##### 'available'
-Has the following parameters:
+#### generateId `manager.generateId()`
 
-- {String} name - The name of the service.
-- {Object} data - User-defined object describing the service.
-- {String} reason - Why this event was sent: 'new', 'availabilityChange',
-  'timedOut'.
+Returns a Manager-specific unique identifier.
 
-This event can happen when:
+See Registry.generateId for more information.
 
-- The first announcement for a service is received.
-- The availability changes, if the available status changes from false to true.
+#### addLocalService `manager.addLocalService(service)`
 
-##### 'unavailable'
-Has the following parameters:
+Used as a signal from the Registry to its Manager that a new local Service
+is available.
 
-- {String} name - The name of the service.
-- {Object} data - User-defined object describing the service.
-- {String} reason - Why this event was sent: 'new', 'availabilityChange',
-  'timedOut'.
+#### removeLocalService `manager.removeLocalService(service)`
 
-This event can happen when:
+Used as a signal from the Registry to its Manager that a local Service
+is no longer available.
 
-- The first announcement for a service is received and the service is
-  unavailable..
-- The availability changes, if the available status changes from true to false.
-- When 2x the announce interval time for the service elapsed without an
-  announcement being seen. The service is considered unavailable and removed
-  from the list of services.
+#### updateLocalService `manager.updateLocalService(service)`
 
+Used as a signal from the Registry to its Manager that a local Service
+has updated its data without updating its availability.
+
+#### toJSON `manager.toJSON()`
+
+Returns a JSON representation of the Manager suitable for logging debug
+information.
+
+### UdpBroadcastManager `discovery.UdpBroadcast(options)`
+
+Creates a new instance of UdpBroadcastManager with the provided `options`.
+
+The UdpBroadcastManager provides a client connection to the
+zero-configuration, UDP-based discovery system that is used by SuperCluster
+by default. Because it requires zero configuration to use, it's ideal for
+initial exploration and development. However, it's not expected to work
+at-scale, and should be replaced with the included HTTP-based version.
+
+#### destroy `udpBroadcastManager.destroy()`
+
+Signals a graceful shutdown of the UdpBroadcastManager.
+
+#### generateId `udpBroadcastManager.generateId()`
+
+Returns a UDP-specific unique identifier using the machine's IP address
+and the configured port number.
+
+See Manager.generateId for more information.
+
+### HttpManager `discovery.Http(options)`
+
+Creates a new instance of HttpManager with the provided `options`.
+
+The HttpManager provides a client connection to the HTTP-based, Tracker
+discovery system.
+
+#### destroy `httpManager.destroy()`
+
+Signals a graceful shutdown of the HttpManager.
+
+#### generateId `httpManager.generateId()`
+
+Returns an HTTP-specific unique identifier using the machine's IP address
+and the configured port number.
+
+See Manager.generateId for more information.
