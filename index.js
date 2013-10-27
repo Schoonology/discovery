@@ -17,7 +17,6 @@ var events = require('events');
 var debug = require('debug')('sc:discovery');
 var is = require('is2');
 var objToJson = require('obj-to-json');
-//var jsonQuery = require('json-query');
 
 // Constants
 var MULTICAST_ADDRESS = '224.0.0.234';
@@ -25,6 +24,7 @@ var DEFAULT_UDP_PORT = 44201;
 var DEFAULT_TIMEOUT = 1000;
 var DEFAULT_INTERVAL = 3000;
 var DEFAULT_DGRAM_TYPE = 'udp4'; // could also be 'udp6'
+var GLOBAL_EVENT_NAME = 'MessageBus';
 
 // We use events and must inherit from events.EventEmitter
 util.inherits(Discovery, events.EventEmitter);
@@ -33,8 +33,7 @@ util.inherits(Discovery, events.EventEmitter);
 exports.Discovery = Discovery;
 
 /**
- * Creates a Discovery object. The options object is optional. Supported options
- * are:
+ * Creates a Discovery object. The options object is optional. Supported options are:
  *   - port - Set the port the service listens on for announcements default:
  *     44201
  *   - bindAddr - bind to an address
@@ -80,7 +79,7 @@ function Discovery(options) {
 
       // the received message was either an event or an announcement
       if (obj.eventName)
-        self.emit(obj.eventName, obj.data);
+        self.emit(GLOBAL_EVENT_NAME, obj.eventName, obj.data);
       else
         self.handleAnnouncement(obj, rinfo);
     }
@@ -270,7 +269,9 @@ Discovery.prototype.addNew = function(name, userData, interval, available,
   self.services[name].interval = interval;
   self.services[name].data = userData;
   self.services[name].available = available;
-  self.services[name].announce = announce;
+  //self.services[name].announce = announce;
+  // if local is true, the service is local to this process.
+  self.services[name].local = announce;
 
   // if there is an rinfo, copy it and place it on the service
   // we don't need the size parameter, though.
@@ -450,7 +451,125 @@ Discovery.prototype.handleTimeOut = function() {
 };
 
 /**
+ * Send an event to all discovered services.
+ * @param {String} eventName The name of the event.
+ * @param {Object} [data] User data sent along with the event. Optional.
+ * @return {Boolean} true, if successful false otherwise.
+ */
+Discovery.prototype.sendEvent = function(eventName, data) {
+  if (!is.nonEmptyStr(eventName)) {
+    debug('sendEvent has a bad param for eventName: '+inspect(eventName));
+    return false;
+  }
+
+  return this.sendEventToAddress(MULTICAST_ADDRESS, eventName, data);
+};
+
+/**
  * Send an event to a service, an array of services, or services matching a
  * query.
+ * @param {String|Array|FUnction} dest The service name, an array of services or a query to select serices.
+ * @param {String} eventName The name of the event.
+ * @param {Object} [data] User data sent along with the event. Optional.
+ * @return {Boolean} true on success, false otherwise.
  */
+Discovery.prototype.sendEventTo = function(dest, eventName, data) {
+  if (!is.nonEmptyStr(dest) && !is.nonEmptyArray(dest) && !is.function(dest)) {
+    debug('Discovery.sendEventTo received bad dest parameter: '+inspect(dest));
+    return false;
+  }
+
+  if (!is.nonEmptyStr(eventName)) {
+    debug('Discovery.sendEventTo received bad name parameter: '+inspect(eventName));
+    return false;
+  }
+
+  var i;
+  // handle the case where dest is a service name
+  if (is.nonEmptyStr(dest)) {
+    this.sendEventToService(dest, eventName, data);
+  } else if (is.nonEmptyArray(dest)) {
+    for (i=0; i<dest.length; i++)
+      this.sendEventToService(dest[i], eventName, data);
+  } else if (is.function(dest)) {
+    var queryFunc = dest;
+    var matches = [];
+    for (i=0; i<this.services; i++) {
+      if (queryFunc(this.services[i]) === true)
+        matches.push(this.services[i]);
+    }
+    for (i=0; i<matches.length; i++) {
+      this.sendEventToService(matches[i].name, eventName, data);
+    }
+  }
+  return true;
+};
+
+/**
+ * Send event to either the local process or remote process.
+ * @param {String} name The name of the service to receive the message.
+ * @param {Object} [data] Optional user data to send with message.
+ * @return {Boolean} true on success, false otherwise.
+ * @private
+ */
+Discovery.prototype.sendEventToService = function(name, eventName, data) {
+  if (!is.nonEmptyStr(name)) {
+    debug('Discovery.sendEvent received bad name parameter: '+inspect(name));
+    return false;
+  }
+
+  if (!this.services[name])  {
+    debug('Discovery.sendEvent no such service name as: '+inspect(name));
+    return false;
+  }
+
+  if (!is.nonEmptyStr(eventName)) {
+    debug('Discovery.sendEvent invalid event name: '+inspect(eventName));
+    return false;
+  }
+
+  if (this.services[name].local)
+    this.emit(GLOBAL_EVENT_NAME, eventName, data);
+  else
+    this.sendEventToAddr(this.services[name].addr, eventName, data);
+
+  return true;
+};
+
+/**
+ * Send event to either the local process or remote process.
+ * @param {String} addr The address of the service to receive the message.
+ * @param {String} eventName The event name to send.
+ * @param {Object} [data] Optional user data to send with message.
+ * @return {Boolean} true on success, false otherwise.
+ * @private
+ */
+Discovery.prototype.sendEventToAddress = function(addr, eventName, data) {
+  if (!is.nonEmptyStr(eventName)) {
+    debug('Discovery.sendEventToAddress invalid event name: '+
+          inspect(eventName));
+    return false;
+  }
+
+  if (!is.nonEmptyStr(addr)) {
+    debug('Discovery.sendEventToAddress invalid addr: '+inspect(addr));
+    return false;
+  }
+
+  var obj = {
+    eventName: eventName,
+    data: data
+  };
+
+  // convert data to JSON string
+  var str = objToJson.jsonStringify(obj);
+  if (!str) {
+    debug('Discovery.sendEvent could not stringify data param: '+inspect(data));
+    return false;
+  }
+  var buf = new Buffer(str);
+  this.socket.send(buf, 0, buf.length, this.port, addr);
+
+  return true;
+};
 

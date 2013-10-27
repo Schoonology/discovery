@@ -22,7 +22,8 @@
   "license": "MIT, Copyright (c) 2013 Strongloop",
   "dependencies": {
     "debug": "~0.7.2",
-    "is2": "~0.0.4"
+    "is2": "~0.0.4",
+    "obj-to-json": "0.0.0"
   },
   "devDependencies": {
     "mocha": "~1.13.0"

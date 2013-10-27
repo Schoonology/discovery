@@ -18,3 +18,8 @@ var serv = {
 };
 
 discover.announce(name, serv, interval, available);
+
+discover.on('MessageBus', function(event, data) {
+  console.log('event:',event);
+  console.log('data:',data);
+});
