@@ -15,6 +15,7 @@ var util = require('util');
 var events = require('events');
 var debug = require('debug')('sc:discovery');
 var is = require('is2');
+var objToJson = require('obj-to-json');
 
 // Constants
 var MULTICAST_ADDRESS = '224.0.0.234';
@@ -25,6 +26,8 @@ var DEFAULT_DGRAM_TYPE = 'udp4'; // could also be 'udp6'
 
 // We use events and must inherit from events.EventEmitter
 util.inherits(Discovery, events.EventEmitter);
+
+// export the object for users of the module.
 exports.Discovery = Discovery;
 
 /**
@@ -35,8 +38,7 @@ exports.Discovery = Discovery;
  *   - bindAddr - bind to an address
  *   - dgramType - Either 'udp4' or 'udp6', default: 'udp4'.
  *   - timeOutInt - duration of time between timeout checks in ms. Default 1000.
- *
- * @param {Object} options A configuration object.
+ * @param {Object} [options] An optional configuration object.
  * @constructor
  */
 function Discovery(options) {
@@ -45,9 +47,6 @@ function Discovery(options) {
 
   if (options && !is.obj(options))
     debug('Dicovery constructor bad options argument: '+util.inspect(options));
-
-  // optionally send errors to console
-  //self.debug = (options && options.debug) ? options.debug : false;
 
   // Create a dgram socket and bind it
   self.dgramType = (options && options.dgramType) ?
@@ -70,7 +69,7 @@ function Discovery(options) {
   // handle any announcements, here we just do the formatting
   self.socket.on('message', function(message, rinfo) {
     if (message) {
-      var obj = jsonStrToObj(message.toString());
+      var obj = objToJson.jsonParse(message.toString());
       if (!obj) {
         debug('bad announcement: '+message.toString());
         return;
@@ -106,7 +105,7 @@ Discovery.prototype.announce = function(name, userData, interval, available) {
   if (!available)  available = true;
 
   // make a copy of the userData object
-  var userDataCopy = copyObj(userData);
+  var userDataCopy = objToJson.copyObj(userData);
   if (!userDataCopy)  return false;
   debug('userDataCopy:'+util.inspect(userDataCopy));
 
@@ -209,12 +208,13 @@ Discovery.prototype.update = function(name, userData, interval, available) {
   if (!available)  available = true;
 
   // make a copy of the userData object
-  var userDataCopy = copyObj(userData);
+  var userDataCopy = objToJson.copyObj(userData);
   if (!userDataCopy)  return false;
 
   // attempt to add the announcement return result to user
   return this.updateExisting(name, userDataCopy, interval, available);
 };
+
 /**
  * Adds new announcements to the services object. Takes care of adding missing
  * values that have defaults, making the name property constant, and emitting
@@ -381,10 +381,10 @@ Discovery.prototype.getData = function(name) {
  */
 function sendAnnounce(discObj, data) {
   // make a copy
-  var copy = copyObj(data);
+  var copy = objToJson.copyObj(data);
   delete copy.lastAnnTm;
   delete copy.intervalId;
-  var str = objToJsonStr(copy);
+  var str = objToJson.jsonStringify(copy);
   if (!str)  return;
 
   // send the stringified buffer over multicast
@@ -431,71 +431,5 @@ function handleTimeOut(discObj) {
       delete services[name];
     }
   }
-}
-
-/**
- * A convenience function to copy an object. Must be an object that can be
- * serialized into JSON.
- * @param {Object} obj An object to be copied.
- * @param {Array|Str} delProps A string or an array of properties to delete.
- * @return {Object|Boolean} returns the object copy or false, if there was an
- *   error.
- * @private
- */
-function copyObj(obj, delProps) {
-  var newObj;
-  try {
-    newObj = JSON.parse(JSON.stringify(obj));
-  } catch(err) {
-    debug('copyObj error: '+err.message);
-    return false;
-  }
-
-  // remove unwanted object properties.
-  if (delProps) {
-    if (is.str(delProps) && newObj[delProps]) {
-      delete newObj[delProps];
-    } else if (is.array(delProps)) {
-      for (var i=0; i<delProps.length; i++) {
-        delete newObj[i];
-      }
-    }
-  }
-  return newObj;
-}
-
-/**
- * A convenience function to convert a JSON string to an object.
- * @param {String} str A stringified JSON representation.
- * @return {Object|Boolean} returns the object representation of the JSON, if
- * the str representation is is legal and false otherwise.
- * @private
- */
-function jsonStrToObj(str) {
-  var obj;
-  try {
-    obj = JSON.parse(str);
-  } catch(err) {
-    debug('jsonStrToObj error: '+err.message);
-    return false;
-  }
-  return obj;
-}
-
-/**
- * A convenience function to convert an object to a JSON string.
- * @param {Object} obj A javascript object than can be converted to JSON
- * @return {String|Boolean} The JSON string if possible and false otherwise.
- * @private
- */
-function objToJsonStr(obj) {
-  var str;
-  try {
-    str = JSON.stringify(obj);
-  } catch(err) {
-    debug('objToJsonStr error: '+err.message);
-    return false;
-  }
-  return str;
 }
 
