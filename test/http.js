@@ -51,13 +51,9 @@ describe('HTTP', function () {
   });
 
   it('up-down', function (done) {
-    var service = {
-      name: 'test:http-updown',
-      local: false,
-      data: {
-        foo: 'bar'
-      }
-    };
+    var service = common.createRemoteServiceSpec('test:http-updown', {
+      foo: 'bar'
+    });
 
     common.expectEvent(registry, 'available', service);
     common.expectEvent(registry, 'unavailable', service);
@@ -76,13 +72,9 @@ describe('HTTP', function () {
   });
 
   it('up-down-up', function (done) {
-    var service = {
-      name: 'test:http-updownup',
-      local: false,
-      data: {
-        foo: 'bar'
-      }
-    };
+    var service = common.createRemoteServiceSpec('test:http-updownup', {
+      foo: 'bar'
+    });
 
     common.expectEvent(registry, 'available', service);
     common.expectEvent(registry, 'unavailable', service);
@@ -106,17 +98,14 @@ describe('HTTP', function () {
   });
 
   it('up-update-down', function (done) {
-    var original = {
-      name: 'test:http-upupdatedown',
-      local: false,
-      data: {
-        foo: 'bar',
-        bar: obcheckt.Undefined
-      }
-    };
-
-    var updated = JSON.parse(JSON.stringify(original));
-    updated.data.bar = 'foo';
+    var original = common.createRemoteServiceSpec('test:http-upupdatedown', {
+      foo: 'bar',
+      bar: obcheckt.Undefined
+    });
+    var updated = common.createRemoteServiceSpec('test:http-upupdatedown', {
+      foo: 'bar',
+      bar: 'foo'
+    });
 
     common.expectEvent(registry, 'available', original);
     common.expectEvent(registry, 'update', updated);
@@ -137,17 +126,14 @@ describe('HTTP', function () {
   });
 
   it('up-down-up-update-down', function (done) {
-    var original = {
-      name: 'test:http-multi',
-      local: false,
-      data: {
-        foo: 'bar',
-        bar: obcheckt.Undefined
-      }
-    };
-
-    var updated = JSON.parse(JSON.stringify(original));
-    updated.data.bar = 'foo';
+    var original = common.createRemoteServiceSpec('test:http-multi', {
+      foo: 'bar',
+      bar: obcheckt.Undefined
+    });
+    var updated = common.createRemoteServiceSpec('test:http-multi', {
+      foo: 'bar',
+      bar: 'foo'
+    });
 
     function phaseOne() {
       common.expectEvent(registry, 'available', original);
@@ -183,17 +169,14 @@ describe('HTTP', function () {
   });
 
   it('up-update-update-down', function (done) {
-    var original = {
-      name: 'test:http-dblupdate',
-      local: false,
-      data: {
-        foo: 'bar',
-        bar: obcheckt.Undefined
-      }
-    };
-
-    var updated = JSON.parse(JSON.stringify(original));
-    updated.data.bar = 'foo';
+    var original = common.createRemoteServiceSpec('test:http-dblupdate', {
+      foo: 'bar',
+      bar: obcheckt.Undefined
+    });
+    var updated = common.createRemoteServiceSpec('test:http-dblupdate', {
+      foo: 'bar',
+      bar: 'foo'
+    });
 
     common.expectEvent(registry, 'available', original);
     common.expectEvent(registry, 'update', updated);
@@ -215,13 +198,9 @@ describe('HTTP', function () {
 
   it('up-timeout', function (done) {
     var child;
-    var service = {
-      name: 'test:http-updown',
-      local: false,
-      data: {
-        foo: 'bar'
-      }
-    };
+    var service = common.createRemoteServiceSpec('test:http-updown', {
+      foo: 'bar'
+    });
 
     common.expectEvent(registry, 'available', service);
     common.expectEvent(registry, 'unavailable', service);

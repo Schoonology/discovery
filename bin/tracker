@@ -111,7 +111,7 @@ function handleRequest(req, res) {
     debug('Req: %s %s - %j', req.method, req.url, data);
 
     if (typeof data.services === 'object') {
-      updateServices(data);
+      updateServices(data, req.client.address());
     }
 
     res.statusCode = 200;
@@ -138,9 +138,10 @@ function handleRequest(req, res) {
  *
  * @param  {Object} data Client-provided Service data as `data.services`.
  */
-function updateServices(data) {
+function updateServices(data, rinfo) {
   Object.keys(data.services).forEach(function (name) {
     services[name] = data.services[name];
+    services[name].rinfo = rinfo;
 
     if (!rc.timeout) {
       return;

@@ -29,8 +29,22 @@ function expectEvent(obj, event, spec) {
   });
 }
 
+function createRemoteServiceSpec(name, data) {
+  return {
+    name: name,
+    local: false,
+    rinfo: {
+      address: String,
+      family: String,
+      port: Number
+    },
+    data: data || Object
+  };
+}
+
 module.exports = {
   forkServiceTest: forkServiceTest,
   forkTracker: forkTracker,
-  expectEvent: expectEvent
+  expectEvent: expectEvent,
+  createRemoteServiceSpec: createRemoteServiceSpec
 };

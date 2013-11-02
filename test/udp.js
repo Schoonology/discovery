@@ -34,13 +34,9 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down', function (done) {
-    var service = {
-      name: 'test:udp-updown',
-      local: false,
-      data: {
-        foo: 'bar'
-      }
-    };
+    var service = common.createRemoteServiceSpec('test:udp-updown', {
+      foo: 'bar'
+    });
 
     common.expectEvent(registry, 'available', service);
     common.expectEvent(registry, 'unavailable', service);
@@ -59,13 +55,9 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down-up', function (done) {
-    var service = {
-      name: 'test:udp-updownup',
-      local: false,
-      data: {
-        foo: 'bar'
-      }
-    };
+    var service = common.createRemoteServiceSpec('test:udp-updownup', {
+      foo: 'bar'
+    });
 
     common.expectEvent(registry, 'available', service);
     common.expectEvent(registry, 'unavailable', service);
@@ -89,17 +81,14 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-update-down', function (done) {
-    var original = {
-      name: 'test:udp-upupdatedown',
-      local: false,
-      data: {
-        foo: 'bar',
-        bar: obcheckt.Undefined
-      }
-    };
-
-    var updated = JSON.parse(JSON.stringify(original));
-    updated.data.bar = 'foo';
+    var original = common.createRemoteServiceSpec('test:udp-upupdatedown', {
+      foo: 'bar',
+      bar: obcheckt.Undefined
+    });
+    var updated = common.createRemoteServiceSpec('test:udp-upupdatedown', {
+      foo: 'bar',
+      bar: 'foo'
+    });
 
     common.expectEvent(registry, 'available', original);
     common.expectEvent(registry, 'update', updated);
@@ -120,17 +109,14 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down-up-update-down', function (done) {
-    var original = {
-      name: 'test:udp-multi',
-      local: false,
-      data: {
-        foo: 'bar',
-        bar: obcheckt.Undefined
-      }
-    };
-
-    var updated = JSON.parse(JSON.stringify(original));
-    updated.data.bar = 'foo';
+    var original = common.createRemoteServiceSpec('test:udp-multi', {
+      foo: 'bar',
+      bar: obcheckt.Undefined
+    });
+    var updated = common.createRemoteServiceSpec('test:udp-multi', {
+      foo: 'bar',
+      bar: 'foo'
+    });
 
     function phaseOne() {
       common.expectEvent(registry, 'available', original);
@@ -166,17 +152,14 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-update-update-down', function (done) {
-    var original = {
-      name: 'test:udp-dblupdate',
-      local: false,
-      data: {
-        foo: 'bar',
-        bar: obcheckt.Undefined
-      }
-    };
-
-    var updated = JSON.parse(JSON.stringify(original));
-    updated.data.bar = 'foo';
+    var original = common.createRemoteServiceSpec('test:udp-dblupdate', {
+      foo: 'bar',
+      bar: obcheckt.Undefined
+    });
+    var updated = common.createRemoteServiceSpec('test:udp-dblupdate', {
+      foo: 'bar',
+      bar: 'foo'
+    });
 
     common.expectEvent(registry, 'available', original);
     common.expectEvent(registry, 'update', updated);
@@ -198,13 +181,9 @@ describe('UDP Broadcast', function () {
 
   it('up-timeout', function (done) {
     var child;
-    var service = {
-      name: 'test:udp-updown',
-      local: false,
-      data: {
-        foo: 'bar'
-      }
-    };
+    var service = common.createRemoteServiceSpec('test:udp-updown', {
+      foo: 'bar'
+    });
 
     common.expectEvent(registry, 'available', service);
     common.expectEvent(registry, 'unavailable', service);
