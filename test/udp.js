@@ -1,4 +1,5 @@
 var expect = require('chai').expect;
+var obcheckt = require('obcheckt');
 var common = require('./fixtures/common');
 var discovery = require('../');
 
@@ -33,19 +34,16 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down', function (done) {
-    registry.on('available', function (name, service) {
-      expect(name).to.equal('test:udp-updown');
-      expect(service.name).to.equal('test:udp-updown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-    });
+    var service = {
+      name: 'test:udp-updown',
+      local: false,
+      data: {
+        foo: 'bar'
+      }
+    };
 
-    registry.on('unavailable', function (name, service) {
-      expect(name).to.equal('test:udp-updown');
-      expect(service.name).to.equal('test:udp-updown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-    });
+    common.expectEvent(registry, 'available', service);
+    common.expectEvent(registry, 'unavailable', service);
 
     common.forkServiceTest('udp-updown')
       .on('exit', function (code) {
@@ -61,18 +59,19 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down-up', function (done) {
-    registry.once('available', function (name, service) {
-      expect(name).to.equal('test:udp-updownup');
-      expect(service.name).to.equal('test:udp-updownup');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-    });
+    var service = {
+      name: 'test:udp-updownup',
+      local: false,
+      data: {
+        foo: 'bar'
+      }
+    };
 
-    registry.once('unavailable', function (name, service) {
-      expect(name).to.equal('test:udp-updownup');
-      expect(service.name).to.equal('test:udp-updownup');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
+    common.expectEvent(registry, 'available', service);
+    common.expectEvent(registry, 'unavailable', service);
+
+    registry.on('available', function () {
+      common.expectEvent(registry, 'available', service);
     });
 
     common.forkServiceTest('udp-updownup')
@@ -90,29 +89,21 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-update-down', function (done) {
-    registry.once('available', function (name, service) {
-      expect(name).to.equal('test:udp-upupdatedown');
-      expect(service.name).to.equal('test:udp-upupdatedown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-      expect(service.data.bar).to.not.exist;
-    });
+    var original = {
+      name: 'test:udp-upupdatedown',
+      local: false,
+      data: {
+        foo: 'bar',
+        bar: obcheckt.Undefined
+      }
+    };
 
-    registry.once('update', function (name, service) {
-      expect(name).to.equal('test:udp-upupdatedown');
-      expect(service.name).to.equal('test:udp-upupdatedown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-      expect(service.data.bar).to.equal('foo');
-    });
+    var updated = JSON.parse(JSON.stringify(original));
+    updated.data.bar = 'foo';
 
-    registry.once('unavailable', function (name, service) {
-      expect(name).to.equal('test:udp-upupdatedown');
-      expect(service.name).to.equal('test:udp-upupdatedown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-      expect(service.data.bar).to.equal('foo');
-    });
+    common.expectEvent(registry, 'available', original);
+    common.expectEvent(registry, 'update', updated);
+    common.expectEvent(registry, 'unavailable', updated);
 
     common.forkServiceTest('udp-upupdatedown')
       .on('exit', function (code) {
@@ -129,50 +120,31 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down-up-update-down', function (done) {
+    var original = {
+      name: 'test:udp-multi',
+      local: false,
+      data: {
+        foo: 'bar',
+        bar: obcheckt.Undefined
+      }
+    };
+
+    var updated = JSON.parse(JSON.stringify(original));
+    updated.data.bar = 'foo';
+
     function phaseOne() {
-      registry.once('available', function (name, service) {
-        expect(name).to.equal('test:udp-multi');
-        expect(service.name).to.equal('test:udp-multi');
-        expect(service.local).to.equal(false);
-        expect(service.data.foo).to.equal('bar');
-        expect(service.data.bar).to.not.exist;
-      });
+      common.expectEvent(registry, 'available', original);
+      common.expectEvent(registry, 'unavailable', original);
 
       registry.once('unavailable', function (name, service) {
-        expect(name).to.equal('test:udp-multi');
-        expect(service.name).to.equal('test:udp-multi');
-        expect(service.local).to.equal(false);
-        expect(service.data.foo).to.equal('bar');
-        expect(service.data.bar).to.not.exist;
-
         phaseTwo();
       });
     }
 
     function phaseTwo() {
-      registry.once('available', function (name, service) {
-        expect(name).to.equal('test:udp-multi');
-        expect(service.name).to.equal('test:udp-multi');
-        expect(service.local).to.equal(false);
-        expect(service.data.foo).to.equal('bar');
-        expect(service.data.bar).to.not.exist;
-      });
-
-      registry.once('update', function (name, service) {
-        expect(name).to.equal('test:udp-multi');
-        expect(service.name).to.equal('test:udp-multi');
-        expect(service.local).to.equal(false);
-        expect(service.data.foo).to.equal('bar');
-        expect(service.data.bar).to.equal('foo');
-      });
-
-      registry.once('unavailable', function (name, service) {
-        expect(name).to.equal('test:udp-multi');
-        expect(service.name).to.equal('test:udp-multi');
-        expect(service.local).to.equal(false);
-        expect(service.data.foo).to.equal('bar');
-        expect(service.data.bar).to.equal('foo');
-      });
+      common.expectEvent(registry, 'available', original);
+      common.expectEvent(registry, 'update', updated);
+      common.expectEvent(registry, 'unavailable', updated);
     }
 
     phaseOne();
@@ -194,29 +166,21 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-update-update-down', function (done) {
-    registry.once('available', function (name, service) {
-      expect(name).to.equal('test:udp-dblupdate');
-      expect(service.name).to.equal('test:udp-dblupdate');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-      expect(service.data.bar).to.not.exist;
-    });
+    var original = {
+      name: 'test:udp-dblupdate',
+      local: false,
+      data: {
+        foo: 'bar',
+        bar: obcheckt.Undefined
+      }
+    };
 
-    registry.once('update', function (name, service) {
-      expect(name).to.equal('test:udp-dblupdate');
-      expect(service.name).to.equal('test:udp-dblupdate');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-      expect(service.data.bar).to.equal('foo');
-    });
+    var updated = JSON.parse(JSON.stringify(original));
+    updated.data.bar = 'foo';
 
-    registry.once('unavailable', function (name, service) {
-      expect(name).to.equal('test:udp-dblupdate');
-      expect(service.name).to.equal('test:udp-dblupdate');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-      expect(service.data.bar).to.equal('foo');
-    });
+    common.expectEvent(registry, 'available', original);
+    common.expectEvent(registry, 'update', updated);
+    common.expectEvent(registry, 'unavailable', updated);
 
     common.forkServiceTest('udp-dblupdate')
       .on('exit', function (code) {
@@ -234,21 +198,19 @@ describe('UDP Broadcast', function () {
 
   it('up-timeout', function (done) {
     var child;
+    var service = {
+      name: 'test:udp-updown',
+      local: false,
+      data: {
+        foo: 'bar'
+      }
+    };
+
+    common.expectEvent(registry, 'available', service);
+    common.expectEvent(registry, 'unavailable', service);
 
     registry.on('available', function (name, service) {
-      expect(name).to.equal('test:udp-updown');
-      expect(service.name).to.equal('test:udp-updown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
-
       child.kill();
-    });
-
-    registry.on('unavailable', function (name, service) {
-      expect(name).to.equal('test:udp-updown');
-      expect(service.name).to.equal('test:udp-updown');
-      expect(service.local).to.equal(false);
-      expect(service.data.foo).to.equal('bar');
     });
 
     registry.manager.timeout = 200;

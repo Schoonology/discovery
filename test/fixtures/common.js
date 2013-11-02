@@ -1,5 +1,7 @@
 var path = require('path');
 var fork = require('child_process').fork;
+var expect = require('chai').expect;
+var obcheckt = require('obcheckt');
 
 function forkServiceTest(name) {
   return fork(path.join(__dirname, name));
@@ -20,7 +22,15 @@ function forkTracker() {
   return tracker;
 }
 
+function expectEvent(obj, event, spec) {
+  obj.once(event, function (name, service) {
+    expect(name).to.equal(spec.name);
+    obcheckt.validate(service, spec);
+  });
+}
+
 module.exports = {
   forkServiceTest: forkServiceTest,
-  forkTracker: forkTracker
+  forkTracker: forkTracker,
+  expectEvent: expectEvent
 };
