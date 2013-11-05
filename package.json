@@ -1,7 +1,7 @@
 {
-  "name": "sc-discovery",
+  "name": "discovery",
   "version": "1.0.0",
-  "description": "This module provides discovery services for supercluster.",
+  "description": "Discovery provides dynamic service discovery over a pluggable interface.",
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha --reporter spec test/discovery"
