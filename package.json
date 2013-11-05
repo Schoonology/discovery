@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/strongloop/sc-discovery.git"
+    "url": "git://github.com/Schoonology/discovery.git"
   },
   "keywords": [
     "discovery",
@@ -18,8 +18,8 @@
     "multicast",
     "tcp"
   ],
-  "author": "Edmond Meinfelder",
-  "license": "MIT, Copyright (c) 2013 Strongloop",
+  "author": "Michael Schoonmaker",
+  "license": "MIT, Copyright (c) 2013 Michael Schoonmaker",
   "dependencies": {
     "debug": "~0.7.2",
     "clone": "~0.1.10",
