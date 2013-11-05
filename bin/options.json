@@ -1,0 +1,23 @@
+{
+  "port": {
+    "description": "The port number to bind to.",
+    "default": 4201
+  },
+  "hostname": {
+    "description": "The hostname to bind to.",
+    "default": "0.0.0.0",
+    "string": true
+  },
+  "retryBind": {
+    "description": "Binding retry interval, in milliseconds.",
+    "default": 500
+  },
+  "timeout": {
+    "description": "Timeout duration, in milliseconds.",
+    "default": 7500
+  },
+  "help": {
+    "description": "Show this help text, then exit.",
+    "boolean": true
+  }
+}

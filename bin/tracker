@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+var http = require('http');
+
+/**
+ * We describe all of the acceptible options and their default settings in
+ * `options.json`, deferring to `rc` to merge a ton of different
+ * configuration sources. Using `optimist` and `rc` this way gives the tracker
+ * a lot of configurability very easily while remaining descriptive from the
+ * terminal.
+ *
+ * See the `optimist` and `rc` docs for more information.
+ */
+var optimist = require('rc/node_modules/optimist')
+  .options(require('./options.json'));
+var rc = require('rc')('discovery', {}, optimist.argv);
+
+if (rc.help) {
+  optimist.showHelp();
+  process.exit(0);
+}
+
+/**
+ * We couldn't get very far without these...
+ */
+var discover = require('../');
+var debug = require('../lib/debug')('discovery:HttpTracker');
+
+/**
+ * We only need two artifacts of state: the services as this tracker
+ * understands them and a set of timer IDs for tracking timeouts for each
+ * service.
+ */
+var services = {};
+var timeoutTimerIds = {};
+
+/**
+ * Finally, start the server, routing all requests to `handleRequest`.
+ *
+ * NOTE: If `retryBind` is truthy in the options (see `defaults.json` for its
+ * default), we will retry `listen` until the address and port are available
+ * to be bound to.
+ */
+http
+  .createServer()
+  .listen(rc.port, rc.hostname)
+  .on('listening', function () {
+    var addr = this.address();
+
+    debug('Listening at %s:%s...', addr.address, addr.port);
+
+    if (process.send) {
+      process.send('ready');
+    }
+  })
+  .on('error', function (err) {
+    var server = this;
+
+    if (err.code === 'EADDRINUSE' || rc.retryBind) {
+      debug('Waiting for address/port to be available...');
+      setTimeout(function () {
+        server.listen(rc.port);
+      }, rc.retryBind);
+      return;
+    }
+
+    console.error('Error: %s', err.message);
+  })
+  .on('request', handleRequest);
+
+/**
+ * A simple helper method to buffer all of `req` before continuing its
+ * processing.
+ *
+ * @param  {http.IncomingMessage} req
+ * @param  {Function}             callback
+ */
+function bufferRequest(req, callback) {
+  var buffer = '';
+
+  req
+    .on('data', function (chunk) {
+      buffer += String(chunk);
+    })
+    .on('end', function () {
+      callback(null, buffer);
+    })
+    .once('error', callback);
+}
+
+/**
+ * Handles all incoming requests, terminating in either a 400- or 200-class
+ * response.
+ *
+ * @see `http.Server.on('listening')` for more information.
+ *
+ * @param  {http.IncomingMessage} req
+ * @param  {http.ServerResponse}  res
+ */
+function handleRequest(req, res) {
+  bufferRequest(req, function (err, data) {
+    if (req.url !== '/' || req.method.toUpperCase() !== 'POST') {
+      return sendError(404);
+    }
+
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return sendError(400);
+    }
+
+    debug('Req: %s %s - %j', req.method, req.url, data);
+
+    if (typeof data.services === 'object') {
+      updateServices(data, req.client.address());
+    }
+
+    res.statusCode = 200;
+    res.end(JSON.stringify(services));
+
+    return;
+
+    function sendError(code, message) {
+      if (!message) {
+        message = http.STATUS_CODES[code];
+      }
+
+      res.statusCode = code;
+      res.end(message);
+
+      debug('Error in %s %s : %s %s', req.method.toUpperCase(), req.url, code, message);
+    }
+  });
+}
+
+/**
+ * Updates our view of the available services with `data`, presumably from
+ * an HttpManager.
+ *
+ * @param  {Object} data Client-provided Service data as `data.services`.
+ */
+function updateServices(data, rinfo) {
+  Object.keys(data.services).forEach(function (name) {
+    services[name] = data.services[name];
+    services[name].rinfo = rinfo;
+
+    if (!rc.timeout) {
+      return;
+    }
+
+    if (timeoutTimerIds[name]) {
+      clearTimeout(timeoutTimerIds[name]);
+    }
+
+    timeoutTimerIds[name] = setTimeout(function () {
+      timeoutTimerIds[name] = null;
+      debug('Timeout: %s', name);
+      services[name].available = false;
+    }, rc.timeout);
+  });
+}

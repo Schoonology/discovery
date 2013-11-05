@@ -2,13 +2,13 @@
   "name": "sc-discovery",
   "version": "0.0.0",
   "description": "This module provides discovery services for supercluster.",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --reporter list"
+    "test": "mocha --reporter spec test/discovery"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/strongloop/sc-discovery.git"
+    "url": "git://github.com/Schoonology/discovery.git"
   },
   "keywords": [
     "discovery",
@@ -18,14 +18,17 @@
     "multicast",
     "tcp"
   ],
-  "author": "Edmond Meinfelder",
-  "license": "MIT, Copyright (c) 2013 Strongloop",
+  "author": "Michael Schoonmaker",
+  "license": "MIT, Copyright (c) 2013 Michael Schoonmaker",
   "dependencies": {
     "debug": "~0.7.2",
-    "is2": "~0.0.4",
-    "obj-to-json": "0.0.0"
+    "clone": "~0.1.10",
+    "sigmund": "~1.0.0",
+    "rc": "~0.3.1"
   },
   "devDependencies": {
-    "mocha": "~1.13.0"
+    "mocha": "~1.13.0",
+    "chai": "~1.8.0",
+    "obcheckt": "~0.1.4"
   }
 }
