@@ -218,7 +218,7 @@ describe('HTTP', function () {
           ]);
 
           done();
-        }, 200);
+        }, 250);
       });
   });
 });

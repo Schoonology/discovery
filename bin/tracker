@@ -10,7 +10,7 @@ var http = require('http');
  *
  * See the `optimist` and `rc` docs for more information.
  */
-var optimist = require('rc/node_modules/optimist')
+var optimist = require('optimist')
   .options(require('./options.json'));
 var rc = require('rc')('discovery', {}, optimist.argv);
 

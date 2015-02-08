@@ -31,5 +31,8 @@
     "mocha": "~1.13.0",
     "chai": "~1.8.0",
     "obcheckt": "~0.1.4"
+  },
+  "optionalDependencies": {
+    "optimist": "~0.6.1"
   }
 }
