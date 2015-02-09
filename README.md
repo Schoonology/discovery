@@ -57,6 +57,31 @@ in its network. That is, all other Registry objects whose Managers are both
 compatible and reachable by this Registry's Manager will emit 'available'
 events for this Service.
 
+#### Event: `"available"`
+
+The Registry emits an `"available"` event for every Service that comes
+available, whether they be local or remote. Two arguments are passed in to the
+event handler: the fully-qualified and unique `name` of the Service and the
+`data` currently associated with that Service.
+
+A brief note on Service `name` values: "Fully-qualified" names, in order to
+be universally unique, join the originally-specified Service name with a unique
+suffix provided by the Manager's `generateId` implementation, separated by a
+colon. _In practice, the `name` received as a part of the `"available"` event
+can be split by the delimeter (`:`), to get the original `name` passed in to
+`createService`._
+
+#### Event: `"unavailable"`
+
+The Registry emits an `"unavailable"` event for every Service that comes
+unavailable _after being available at some point in the past_. The arguments
+passed in to `"unavailable"` mirror those of `"available"`: `name` and `data.
+
+No guarantees are made beyond the order of events: available, unavailable,
+available, unavailable, ... - two events may arrive in the same tick, the
+Managers involved may elect to consider your Service(s) "unavailable" for
+implementation-specific reasons, and so forth. Design and plan accordingly.
+
 ### Service
 
 #### update `service.update(data)`
