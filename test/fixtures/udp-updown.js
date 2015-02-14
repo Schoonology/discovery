@@ -7,5 +7,5 @@ setTimeout(function () {
 }, 100);
 
 setTimeout(function () {
-  process.exit(0);
+  registry.destroy();
 }, 200);

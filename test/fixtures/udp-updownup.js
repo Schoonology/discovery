@@ -11,5 +11,5 @@ setTimeout(function () {
 }, 200);
 
 setTimeout(function () {
-  process.exit(0);
+  registry.destroy();
 }, 300);

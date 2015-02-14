@@ -19,6 +19,10 @@ function forkTracker() {
     }
   });
 
+  process.on('exit', function () {
+    tracker.kill();
+  });
+
   return tracker;
 }
 
