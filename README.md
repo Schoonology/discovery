@@ -11,10 +11,11 @@ Registry's understanding of the cluster and its remotely-available Services.
 
 ### Services
 
-Discovery makes no assumptions about the format or purpose of Service objects
-save one: all Services must have a `name`. The Service interface merely
-provides a consistent interface for managing the metadata associated with
-ths service it represents and the announcements thereof.
+Discovery makes few assumptions about the format or purpose of Service objects.
+All Services must be given a `name`, and will be assigned a universally-unique
+`id` to identify instances of a Service that share the same name. The Service
+interface provides a consistent interface for managing the metadata associated
+with ths service it represents and the announcements thereof.
 
 ### Registry
 
@@ -61,15 +62,12 @@ events for this Service.
 
 The Registry emits an `"available"` event for every Service that comes
 available, whether they be local or remote. Two arguments are passed in to the
-event handler: the fully-qualified and unique `name` of the Service and the
-`data` currently associated with that Service.
+event handler: the `name` of the Service and the `data` currently associated
+with that Service.
 
-A brief note on Service `name` values: "Fully-qualified" names, in order to
-be universally unique, join the originally-specified Service name with a unique
-suffix provided by the Manager's `generateId` implementation, separated by a
-colon. _In practice, the `name` received as a part of the `"available"` event
-can be split by the delimeter (`:`), to get the original `name` passed in to
-`createService`._
+If you need a unique identifier for this Service "instance", use `id`, as
+`name` is preserved from the original `createService` call, and may not be
+unique.
 
 #### Event: `"unavailable"`
 

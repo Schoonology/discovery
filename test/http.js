@@ -51,7 +51,7 @@ describe('HTTP', function () {
   });
 
   it('up-down', function (done) {
-    var service = common.createRemoteServiceSpec('test:http-updown', {
+    var service = common.createRemoteServiceSpec('test', {
       foo: 'bar'
     });
 
@@ -72,7 +72,7 @@ describe('HTTP', function () {
   });
 
   it('up-down-up', function (done) {
-    var service = common.createRemoteServiceSpec('test:http-updownup', {
+    var service = common.createRemoteServiceSpec('test', {
       foo: 'bar'
     });
 
@@ -98,11 +98,11 @@ describe('HTTP', function () {
   });
 
   it('up-update-down', function (done) {
-    var original = common.createRemoteServiceSpec('test:http-upupdatedown', {
+    var original = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: obcheckt.Undefined
     });
-    var updated = common.createRemoteServiceSpec('test:http-upupdatedown', {
+    var updated = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: 'foo'
     });
@@ -126,11 +126,11 @@ describe('HTTP', function () {
   });
 
   it('up-down-up-update-down', function (done) {
-    var original = common.createRemoteServiceSpec('test:http-multi', {
+    var original = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: obcheckt.Undefined
     });
-    var updated = common.createRemoteServiceSpec('test:http-multi', {
+    var updated = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: 'foo'
     });
@@ -169,11 +169,11 @@ describe('HTTP', function () {
   });
 
   it('up-update-update-down', function (done) {
-    var original = common.createRemoteServiceSpec('test:http-dblupdate', {
+    var original = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: obcheckt.Undefined
     });
-    var updated = common.createRemoteServiceSpec('test:http-dblupdate', {
+    var updated = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: 'foo'
     });
@@ -198,7 +198,7 @@ describe('HTTP', function () {
 
   it('up-timeout', function (done) {
     var child;
-    var service = common.createRemoteServiceSpec('test:http-updown', {
+    var service = common.createRemoteServiceSpec('test', {
       foo: 'bar'
     });
 

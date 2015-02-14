@@ -34,7 +34,7 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down', function (done) {
-    var service = common.createRemoteServiceSpec('test:udp-updown', {
+    var service = common.createRemoteServiceSpec('test', {
       foo: 'bar'
     });
 
@@ -55,7 +55,7 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down-up', function (done) {
-    var service = common.createRemoteServiceSpec('test:udp-updownup', {
+    var service = common.createRemoteServiceSpec('test', {
       foo: 'bar'
     });
 
@@ -81,11 +81,11 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-update-down', function (done) {
-    var original = common.createRemoteServiceSpec('test:udp-upupdatedown', {
+    var original = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: obcheckt.Undefined
     });
-    var updated = common.createRemoteServiceSpec('test:udp-upupdatedown', {
+    var updated = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: 'foo'
     });
@@ -109,11 +109,11 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-down-up-update-down', function (done) {
-    var original = common.createRemoteServiceSpec('test:udp-multi', {
+    var original = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: obcheckt.Undefined
     });
-    var updated = common.createRemoteServiceSpec('test:udp-multi', {
+    var updated = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: 'foo'
     });
@@ -152,11 +152,11 @@ describe('UDP Broadcast', function () {
   });
 
   it('up-update-update-down', function (done) {
-    var original = common.createRemoteServiceSpec('test:udp-dblupdate', {
+    var original = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: obcheckt.Undefined
     });
-    var updated = common.createRemoteServiceSpec('test:udp-dblupdate', {
+    var updated = common.createRemoteServiceSpec('test', {
       foo: 'bar',
       bar: 'foo'
     });
@@ -181,7 +181,7 @@ describe('UDP Broadcast', function () {
 
   it('up-timeout', function (done) {
     var child;
-    var service = common.createRemoteServiceSpec('test:udp-updown', {
+    var service = common.createRemoteServiceSpec('test', {
       foo: 'bar'
     });
 

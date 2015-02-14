@@ -32,6 +32,7 @@ function expectEvent(obj, event, spec) {
 function createRemoteServiceSpec(name, data) {
   return {
     name: name,
+    id: String,
     local: false,
     rinfo: {
       address: String,

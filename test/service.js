@@ -18,6 +18,26 @@ describe('Service', function () {
     });
   });
 
+  describe('id', function () {
+    it('should default to name', function () {
+      var service = new discovery.Service({ name: 'test' });
+
+      expect(service.id).to.equal('test');
+
+      service = new discovery.Service({ name: 'test', id: 'test:0' });
+
+      expect(service.id).to.equal('test:0');
+    });
+
+    it('should be read-only', function () {
+      var service = new discovery.Service({ name: 'test' });
+
+      expect(service.id).to.equal('test');
+      service.id = 'changed';
+      expect(service.id).to.equal('test');
+    });
+  });
+
   describe('local', function () {
     it('should default to false', function () {
       var service = new discovery.Service({ name: 'test' });
