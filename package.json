@@ -21,11 +21,11 @@
   "author": "Michael Schoonmaker",
   "license": "MIT, Copyright (c) 2013 Michael Schoonmaker",
   "dependencies": {
-    "debug": "~0.7.2",
     "clone": "~0.1.10",
-    "sigmund": "~1.0.0",
+    "debug": "~0.7.2",
+    "ip": "~0.1.0",
     "rc": "~0.3.1",
-    "ip": "~0.1.0"
+    "sigmund": "~1.0.0"
   },
   "devDependencies": {
     "mocha": "~1.13.0",
