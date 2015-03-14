@@ -1,6 +1,6 @@
 {
   "name": "discovery",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Discovery provides dynamic service discovery over a pluggable interface.",
   "main": "lib/index.js",
   "scripts": {
